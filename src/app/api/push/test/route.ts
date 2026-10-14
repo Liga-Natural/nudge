@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { clientKey, rateLimit, tooMany } from "@/lib/rate-limit";
 import webpush from "web-push";
 import { createClient } from "@/lib/supabase/server";
 import { APP_NAME } from "@/lib/config";
 
 export async function POST() {
+  const limited = rateLimit(`push-test:${clientKey(await headers())}`, 6, 60_000);
+  if (!limited.ok) return tooMany(limited.retryAfterSeconds);
   const supabase = await createClient();
   const {
     data: { user },

@@ -10,7 +10,8 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:db": "vitest run tests/db"
+    "test:db": "vitest run tests/db",
+    "build:e2e": "cross-env NUDGE_E2E=1 next build"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -35,6 +36,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.1",
     "tailwindcss": "^4",

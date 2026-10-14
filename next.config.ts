@@ -14,7 +14,16 @@ const securityHeaders = [
   },
 ];
 
+const e2e = process.env.NUDGE_E2E === "1";
+if (e2e && process.env.VERCEL) {
+  // The pretend-data test mode must never be deployed.
+  throw new Error("NUDGE_E2E=1 is for local test builds only and cannot be built on Vercel.");
+}
+
 const nextConfig: NextConfig = {
+  distDir: e2e ? ".next-e2e" : ".next",
+  // Baked in at build time, so a normal build contains none of the test-mode code.
+  env: { NUDGE_E2E: e2e ? "1" : "" },
   turbopack: {
     rules: {
       "*.css": {

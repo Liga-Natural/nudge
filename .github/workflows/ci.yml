@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+
+# A newer push cancels the older run for the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Types, lint, unit and database tests, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: Cache the Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts') }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+      - name: Production build (placeholder public values only)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: placeholder
+      - name: No secrets and no test-mode code in the browser files
+        run: npm run check:secrets
+
+  # Browser tests are slow, so they only run on pull requests into main, never for Dependabot,
+  # and one step at a time (never two browser runs at once).
+  e2e:
+    name: Browser tests (phone, then desktop)
+    if: github.event_name == 'pull_request' && github.base_ref == 'main' && github.actor != 'dependabot[bot]'
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Cache browsers
+        id: browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install the browser
+        run: npx playwright install --with-deps chromium
+      - name: Cache the test build
+        uses: actions/cache@v4
+        with:
+          path: .next-e2e/cache
+          key: next-e2e-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**', 'next.config.ts') }}
+          restore-keys: next-e2e-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+      - name: Build the test version of the app
+        run: npm run build:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: placeholder
+      - name: Phone (375px)
+        run: npx playwright test --project=phone
+      - name: Desktop
+        run: npx playwright test --project=desktop
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

@@ -1,6 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,6 +20,8 @@ export async function requestCode(
     return { step: "email", error: "That doesn't look like an email address." };
   }
   const email = parsed.data;
+  const tries = rateLimit(`login:${clientKey(await headers())}`, 6, 10 * 60_000);
+  if (!tries.ok) return { step: "email", email, error: "Too many tries. Please wait a few minutes and try again." };
   const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
   if (!owner) {
     return { step: "email", error: "The app isn't set up yet (owner email missing)." };
@@ -44,6 +48,8 @@ export async function verifyCode(
   if (!code.success || !prev.email) {
     return { step: "code", email: prev.email, error: "Enter the numbers from the email." };
   }
+  const tries = rateLimit(`verify:${clientKey(await headers())}`, 10, 10 * 60_000);
+  if (!tries.ok) return { step: "code", email: prev.email, error: "Too many tries. Please wait a few minutes and try again." };
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({
     email: prev.email,
