@@ -31,6 +31,7 @@ export async function proxy(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
   requestHeaders.set("Content-Security-Policy", csp);
 
   let response = NextResponse.next({ request: { headers: requestHeaders } });
@@ -40,7 +41,8 @@ export async function proxy(request: NextRequest) {
   };
 
   const path = request.nextUrl.pathname;
-  const isPublic = path.startsWith("/login") || path.startsWith("/privacy") || path.startsWith("/terms");
+  const isPublic =
+    path.startsWith("/login") || path.startsWith("/privacy") || path.startsWith("/terms") || (isFakeMode() && path.startsWith("/api/test"));
 
   let signedIn = false;
   if (isFakeMode()) {
