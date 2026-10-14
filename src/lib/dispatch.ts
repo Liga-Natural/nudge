@@ -40,7 +40,7 @@ export type DispatchResult = {
   durationMs: number;
 };
 
-async function call<T>(rpc: Rpc, name: string, args: Record<string, unknown>): Promise<T> {
+export async function call<T>(rpc: Rpc, name: string, args: Record<string, unknown>): Promise<T> {
   const res = await rpc(name, args);
   if (res.error) throw new Error(`${name}: ${res.error.message}`);
   return (res.data ?? []) as T;
