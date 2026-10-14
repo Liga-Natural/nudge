@@ -66,11 +66,21 @@ export async function addVaultSecrets(db: PGlite) {
   );
 }
 
+let template: Promise<Blob | File> | null = null;
+
+/** A fresh database with every migration applied. Built once, then copied for each test. */
 export async function readyDb(): Promise<PGlite> {
-  const db = await newDb();
-  await addVaultSecrets(db);
-  await runMigrations(db);
-  return db;
+  if (!template) {
+    template = (async () => {
+      const base = await newDb();
+      await addVaultSecrets(base);
+      await runMigrations(base);
+      const dump = await base.dumpDataDir("none");
+      await base.close();
+      return dump;
+    })();
+  }
+  return new PGlite({ loadDataDir: await template });
 }
 
 export async function addUser(db: PGlite, email = "a@example.test"): Promise<string> {

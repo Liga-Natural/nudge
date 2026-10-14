@@ -126,6 +126,7 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $fn$
+#variable_conflict use_column
 declare
   claimed_ids uuid[];
 begin
@@ -205,6 +206,7 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $fn$
+#variable_conflict use_column
 declare
   ids uuid[];
 begin
@@ -265,6 +267,7 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $fn$
+#variable_conflict use_column
 begin
   return query
   with cand as (
