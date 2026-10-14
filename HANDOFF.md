@@ -177,3 +177,7 @@ Typecheck clean, lint 0 errors, all unit tests pass (including PGlite migrations
 4. USPS: the old Web Tools API was retired Jan 25, 2026. The new USPS APIs use OAuth 2.0 (client ID + secret), and Tracking access needs a separate access request. USPS is optional/unlikely; carrier deep links + Ship24 are the plan.
 5. Ship24 free: 10 shipments/month, API + webhooks, blocked (not billed) after 10. Only spend a shipment when Adrian taps "Get live updates" on a package, never automatically.
 6. Vercel Hobby: ~43,000 dispatch calls/month is well within limits. Hobby is personal/non-commercial use, which fits Nudge.
+
+## Phase 0 report (done Oct 14, 2026)
+
+Live: https://nudge-ivory.vercel.app (Vercel Production tracks `phase-0-setup`). Built: app skeleton, email-code login (owner only), installable PWA, Web Push with a test button. SQL, in order: `supabase/migrations/0001_push_subscriptions.sql`, `0002_grant_push_subscriptions.sql`. Tested by Adrian on iPhone: install, login, test notification all worked. Not yet done: automated tests, RLS check file, Playwright/axe/Lighthouse, rate limiting, CSP nonce, Dependabot. See NIGHT_LOG.md.
