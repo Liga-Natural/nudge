@@ -8,8 +8,8 @@
 | Branch | What it has | Green? |
 |---|---|---|
 | `main` | Phase 0 (login, install, test notification). Merged from PR #1. | yes |
-| `phase-1` | Everything below: core reminders. Pushed. | typecheck, lint, 125 unit and database tests, 36 browser tests (phone + desktop, accessibility), real build with secrets check. GitHub CI passed on the first push. |
-| `phase-2` | (see the Phase 2 section further down, if started) | see below |
+| `phase-1` | Core reminders (everything under "What Phase 1 contains"). Pushed. | Types, lint, 120 unit and database tests, 51 browser test runs (26 phone, 25 desktop, accessibility checks included), real build with secrets check. GitHub CI passed on every push. |
+| `phase-2` | Phase 1 plus Payments, School, calendar feeds, Updates (see "Phase 2" below). Pushed. | Types, lint, 163 unit and database tests, 65 browser test runs (33 phone, 32 desktop, accessibility checks included) pass on my computer; real build + secrets check pass. |
 
 ### What Phase 1 contains
 - Today (Late / Today / Next 7 days, summary line, swipe or tap to Done, Snooze sheet), Upcoming (list with 7-day strip, month view with dots), Add (plain words → confirm card → Save), Item detail (edit, reminders, history, Done / Skip / Snooze / Mark not done / Delete), Settings (language, Simple/Full, notifications, morning summary, quiet hours, nudge style, per-type switches, spaces, time zone, export JSON/CSV, delete account), onboarding (7 steps, setup ring), English + Español for everything.
@@ -18,12 +18,23 @@
 - Safety: row level security on every table, `supabase/tests/rls_check.sql` returns 0 rows, rate limits, CSP with a fresh nonce on every page, security headers, build-time check that nothing private (and no test-mode code) reaches the browser.
 - Until you run the new SQL the app shows a friendly "one more setup step" page instead of crashing.
 
+### Phase 2 (branch `phase-2`, built on phase-1) — everything is OFF until you switch it on
+- **Settings → Features** has four switches: Payments, School, Calendar feeds, Updates. With any on, Today shows a "More" row of links.
+- **Payments**: due in 7 days / rest of month / late, with totals in exact cents; **Paid** button records the amount you paid and the date (and marks it done); **Autopay** flag on a payment (notifications then say only "Heads up: autopay is on (Fri, Oct 16)", never "Due now"); recently paid list.
+- **School**: courses (colours), assignments grouped by course, upcoming exams (titles with exam / quiz / test / midterm / final / examen / prueba), "Start early (3 days before)" reminder chip on homework.
+- **Calendar feeds** (Settings, when switched on): paste a school link or your Joker bills calendar link (https or webcal). Stored **encrypted** (needs ENCRYPTION_KEY); never shown back; refreshed about every 30 minutes by the minute clock (after the reminders go out); "Check now" button; per-feed problem message in plain words. Duplicates are impossible (one item per calendar event), your edits / Done / snoozes are kept, events that disappear from the feed are archived, dates that move are updated and reported in Updates. Imported events inside 2 days back to 400 days ahead only. Dollar amounts in an event title or notes become the payment amount.
+- **Updates**: newest first — new assignments / events from feeds, changed dates, removed ones, payments marked paid.
+- Safety for feeds: only https, only public addresses (private, local and cloud-metadata addresses refused before and after redirects), 2 MB and 6 second limits, 3 redirects.
+
+**To use Phase 2** (after phase-1 setup works): run `supabase/migrations/0006_payments_school_feeds.sql` (one file; "Success"), then add this variable in Vercel and redeploy: `ENCRYPTION_KEY` (Sensitive) — make it without showing it: in PowerShell run `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" | clip` and paste it. **Keep a copy in your password manager**: if it is lost, saved feed addresses cannot be read and must be added again. Until 0006 is run, the phase-2 build shows the "one more setup step" page instead of the app.
+Phase 2 phone checklist: Settings → Features → switch on Payments, School, Calendar feeds, Updates. Add "pay water bill friday $45" (it becomes a payment) → Payments → Paid → check Updates. Add a course and a homework item with that course. Paste a real school or Joker calendar link under Calendar feeds, tap Check now, wait a minute or two (the clock does the fetch), and see its items on Today/Upcoming.
+
 ### Run these SQL files, in this order (Supabase → SQL Editor → New query, one file at a time)
 1. `supabase/migrations/0003_core_tables.sql`  — tables for profile, spaces, items, reminders, history.
 2. `supabase/migrations/0004_reminder_clock.sql` — the clock's functions and send records.
 3. (do the "switch on the clock" steps below)
 4. `supabase/migrations/0005_clock_schedule.sql` — starts the every-minute job. It refuses to run until the two Vault secrets exist.
-(0001 and 0002 you already ran. After each file, you should see "Success". Then optionally run `supabase/tests/rls_check.sql`: it must return **no rows**.)
+(Phase 2 only: then `0006_payments_school_feeds.sql`, see the Phase 2 note above.) (0001 and 0002 you already ran. After each file, you should see "Success". Then optionally run `supabase/tests/rls_check.sql`: it must return **no rows**.)
 
 ### Switch on the clock (once, after 0003 and 0004)
 New environment variables in Vercel (Settings → Environment Variables; mark the secret ones Sensitive; Production + Preview). Never paste values in chat.
@@ -66,6 +77,12 @@ IGHT_LOG — Nudge
 - **Swipe gestures** work with touch and mouse; every swipe action also has a visible button (✓ and ⏰) for accessibility.
 - **Vercel cron** runs the daily check at 12:00 UTC (8 AM New York in summer). Hobby allows ±59 minutes.
 - **pg_cron cleanup** at 07:15 UTC (3:15 AM in summer, 2:15 AM in winter): clock logs older than 7 days, dispatch_log older than 30 days, send records older than 90 days.
+
+- **Phase 2 features follow your rule** (optional, off by default, switch in Settings → Features), including Payments and School even though they are part of the plan.
+- **Feeds only keep recent events**: from 2 days ago to 400 days ahead (repeating events always). This stops a school calendar from burying you in last year's late assignments; ones that fall out of the window are archived, not deleted.
+- **Items you edit in Nudge stop following the feed** (so a refresh never undoes your edit); items you finished stay finished.
+- **Feed fetching runs after the reminders are sent** in the same minute call, one or two feeds per minute, so a slow school website can never delay a reminder.
+- **Calendar addresses are shown only as the website name** (host), never the full link (they often contain a private token).
 
 ## Blocked
 - Nothing blocked so far. Things I could not do without your accounts: run the new SQL, set Vercel variables, create Vault secrets, test real notifications (all listed above for you).

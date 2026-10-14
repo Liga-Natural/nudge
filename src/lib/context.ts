@@ -25,6 +25,8 @@ export const getCtx = cache(async (): Promise<Ctx> => {
     throw new Error(`Could not load your profile: ${error.message}`);
   }
   const profile = (Array.isArray(data) ? data[0] : data) as Profile;
+  // This version of the app needs file 0006 too; without it the screens would quietly show nothing.
+  if (!profile || !("features" in profile)) return { state: "needs_sql" };
   return { state: "ready", supabase, userId, profile };
 });
 
