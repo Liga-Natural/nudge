@@ -29,6 +29,8 @@ export async function requestCode(
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({ email });
   if (error) {
+    // Log the reason on the server only (never shown to the visitor, no keys).
+    console.error("signInWithOtp failed:", error.status, error.code, error.message);
     return { step: "email", email, error: "We couldn't send the code. Try again in a minute." };
   }
   return { step: "code", email };
