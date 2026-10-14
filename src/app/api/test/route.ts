@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
-import { isFakeMode } from "@/lib/fake-mode";
 
 export const dynamic = "force-dynamic";
 
 // Test-only helper for the automated browser tests: reset the pretend database, or fill it.
 // In a normal build this always answers 404 and none of the fake code is included.
 export async function POST(request: Request) {
-  if (!isFakeMode()) return NextResponse.json({ error: "Not found." }, { status: 404 });
+  if (process.env.NUDGE_E2E !== "1") return NextResponse.json({ error: "Not found." }, { status: 404 });
   const { store, resetStore } = await import("@/lib/supabase/fake");
   const body = (await request.json().catch(() => ({}))) as {
-    action?: "reset" | "seed";
+    action?: "reset" | "seed" | "needs_sql";
     onboarded?: boolean;
     language?: "en" | "es";
     items?: { title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number }[];
   };
   resetStore();
   const s = store();
+  if (body.action === "needs_sql") s.needsSql = true;
   if (body.action === "seed") {
     const spaceId = crypto.randomUUID();
     s.tables.profiles.push({

@@ -1,11 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { isFakeMode } from "@/lib/fake-mode";
 
 export type Db = ReturnType<typeof createServerClient>;
 
 export async function createClient(): Promise<Db> {
-  if (isFakeMode()) {
+  // The literal comparison below is replaced at build time, so a normal build drops this branch
+  // (and the fake code with it); scripts/check-secrets.mjs proves it.
+  if (process.env.NUDGE_E2E === "1") {
     // Only in builds made with NUDGE_E2E=1: pretend data for automated browser tests.
     const { createFakeClient } = await import("./fake");
     return (await createFakeClient()) as unknown as Db;

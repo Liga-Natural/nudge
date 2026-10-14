@@ -5,6 +5,8 @@ type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 
 export function rateLimit(key: string, limit: number, windowMs: number, now = Date.now()) {
+  // Automated browser tests sign in many times a minute; the limit is for real visitors.
+  if (process.env.NUDGE_E2E === "1") return { ok: true, retryAfterSeconds: 0 };
   const bucket = buckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
     buckets.set(key, { count: 1, resetAt: now + windowMs });

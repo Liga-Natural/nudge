@@ -290,6 +290,7 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
           <button
             className="btn-primary mt-4"
             onClick={() => {
+              document.cookie = `nudge-lang=${lang}; path=/; max-age=31536000; samesite=lax`;
               router.push("/");
               router.refresh();
             }}

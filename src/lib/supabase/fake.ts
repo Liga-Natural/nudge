@@ -4,7 +4,7 @@
 import { cookies } from "next/headers";
 
 type Row = Record<string, unknown>;
-type Store = { tables: Record<string, Row[]>; userId: string };
+type Store = { tables: Record<string, Row[]>; userId: string; needsSql?: boolean };
 
 const FAKE_USER = "00000000-0000-4000-8000-000000000001";
 const TABLES = ["profiles", "spaces", "items", "occurrences", "reminders", "item_events", "reminder_sends", "push_subscriptions"];
@@ -195,6 +195,7 @@ export async function createFakeClient() {
       return new Query(table);
     },
     async rpc(name: string, args: Record<string, unknown> = {}) {
+      if (s.needsSql) return { data: null, error: { message: "Could not find the function in the schema cache", code: "PGRST202" } };
       if (name === "ensure_profile") {
         if (!s.tables.profiles.length) {
           s.tables.profiles.push({ user_id: s.userId, ...DEFAULTS.profiles() });

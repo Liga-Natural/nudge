@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "vitest run tests/db",
-    "build:e2e": "cross-env NUDGE_E2E=1 next build"
+    "build:e2e": "cross-env NUDGE_E2E=1 NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_placeholder NEXT_PUBLIC_VAPID_PUBLIC_KEY=placeholder next build",
+    "e2e:phone": "playwright test --project=phone",
+    "e2e:desktop": "playwright test --project=desktop"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

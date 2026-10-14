@@ -46,13 +46,9 @@ export function ItemRow({
 
   function snooze(option: SnoozeOption) {
     setSheet(false);
-    setGone(true);
     start(async () => {
       const r = await snoozeOccurrence(entry.occId, option);
-      if (!r.ok) {
-        setGone(false);
-        setError(t("common.error"));
-      }
+      if (!r.ok) setError(t("common.error"));
     });
   }
 

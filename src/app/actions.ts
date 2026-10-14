@@ -257,7 +257,8 @@ export async function updateProfile(patch: ProfilePatch, quiet = false): Promise
   if (!parsed.success) return fail();
   const { error } = await ctx.supabase.from("profiles").update(parsed.data).eq("user_id", ctx.userId);
   if (error) return fail();
-  if (parsed.data.language) {
+  // Changing a cookie makes Next re-draw the page, so quiet saves (onboarding) leave it to the caller.
+  if (parsed.data.language && !quiet) {
     (await cookies()).set("nudge-lang", parsed.data.language, { path: "/", maxAge: 31536000, sameSite: "lax" });
   }
   // Onboarding saves quietly so the page does not jump away before its "all set" screen.
