@@ -19,6 +19,18 @@ function urlBase64ToUint8Array(base64: string) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
+async function saveSubscription(sub: PushSubscription) {
+  const res = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sub.toJSON()),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? "Something went wrong.");
+  }
+}
+
 export function NotificationsPanel() {
   const [status, setStatus] = useState<Status>("checking");
   const [message, setMessage] = useState("");
@@ -37,7 +49,18 @@ export function NotificationsPanel() {
       if (Notification.permission === "denied") return setStatus("blocked");
       const reg = await navigator.serviceWorker.register("/sw.js");
       const existing = await reg.pushManager.getSubscription();
-      setStatus(existing && Notification.permission === "granted" ? "on" : "off");
+      if (existing && Notification.permission === "granted") {
+        // Make sure the server really has this phone, then show the test button.
+        try {
+          await saveSubscription(existing);
+          setStatus("on");
+        } catch (e) {
+          setStatus("off");
+          setMessage(e instanceof Error ? e.message : "Something went wrong.");
+        }
+        return;
+      }
+      setStatus("off");
     })().catch(() => setStatus("unsupported"));
   }, []);
 
@@ -59,15 +82,7 @@ export function NotificationsPanel() {
             process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
           ),
         }));
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sub.toJSON()),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Something went wrong.");
-      }
+      await saveSubscription(sub);
       setStatus("on");
       setMessage("Notifications are on. Tap the test button.");
     } catch (e) {

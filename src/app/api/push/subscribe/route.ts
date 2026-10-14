@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     { onConflict: "endpoint" },
   );
   if (error) {
+    console.error("push subscribe failed:", error.code, error.message);
     return NextResponse.json({ error: "We couldn't save this phone. Try again." }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
