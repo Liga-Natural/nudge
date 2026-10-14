@@ -3,9 +3,9 @@ import { expect, type Page, type APIRequestContext } from "@playwright/test";
 export const OWNER = "owner@example.test";
 const DAY = 86_400_000;
 
-export type SeedItem = { title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number };
+export type SeedItem = { title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number; autopay?: boolean };
 
-export async function resetApp(request: APIRequestContext, body: { action?: "reset" | "seed" | "needs_sql"; onboarded?: boolean; language?: "en" | "es"; items?: SeedItem[] } = {}) {
+export async function resetApp(request: APIRequestContext, body: { action?: "reset" | "seed" | "needs_sql"; onboarded?: boolean; language?: "en" | "es"; items?: SeedItem[]; features?: Record<string, boolean> } = {}) {
   const res = await request.post("/api/test", { data: { action: "reset", ...body } });
   expect(res.ok()).toBeTruthy();
 }
@@ -29,7 +29,7 @@ export async function signIn(page: Page) {
   await page.waitForURL((u) => !u.pathname.startsWith("/login"));
 }
 
-export async function startReady(page: Page, request: APIRequestContext, items: SeedItem[] = typicalDay(), language: "en" | "es" = "en") {
-  await resetApp(request, { action: "seed", onboarded: true, items, language });
+export async function startReady(page: Page, request: APIRequestContext, items: SeedItem[] = typicalDay(), language: "en" | "es" = "en", features: Record<string, boolean> = {}) {
+  await resetApp(request, { action: "seed", onboarded: true, items, language, features });
   await signIn(page);
 }

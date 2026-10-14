@@ -5,6 +5,7 @@ import { filterBySpace, groupToday } from "@/lib/agenda";
 import { getReadyCtx } from "@/lib/context";
 import { makeT } from "@/lib/i18n";
 import { dueLabel, moneyLabel } from "@/lib/labels";
+import { featureOn } from "@/lib/features";
 import { loadAgenda, spaceLabel } from "@/lib/queries";
 import { addLocalDays, endOfLocalDay, formatDayLong, formatTime, instantToWall } from "@/lib/time";
 import type { AgendaEntry } from "@/lib/types";
@@ -82,6 +83,18 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           </Link>
         )}
       </header>
+
+      {([["payments", "/payments", "💳", "feature.payments"], ["school", "/school", "🎓", "feature.school"], ["updates", "/updates", "🗞️", "feature.updates"]] as const).some(([k]) => featureOn(profile, k)) && (
+        <nav aria-label={t("more.title")} className="-mx-4 flex gap-2 overflow-x-auto px-4">
+          {([["payments", "/payments", "💳", "feature.payments"], ["school", "/school", "🎓", "feature.school"], ["updates", "/updates", "🗞️", "feature.updates"]] as const)
+            .filter(([k]) => featureOn(profile, k))
+            .map(([k, href, emoji, label]) => (
+              <Link key={k} href={href} className="btn-quiet flex-none">
+                <span aria-hidden>{emoji}</span> {t(label)}
+              </Link>
+            ))}
+        </nav>
+      )}
 
       {showSpaces && (
         <SpaceChips spaces={spaces} current={spaceId} base="/" allLabel={t("space.all")} personalLabel={t("space.personal")} />

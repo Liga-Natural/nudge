@@ -3,7 +3,7 @@ import { toEntries } from "./agenda";
 import type { AgendaEntry, ItemRow, OccurrenceRow, Space } from "./types";
 
 export const ITEM_COLUMNS =
-  "id,space_id,type,title,notes,due_at,all_day,timezone,status,priority,amount_cents,currency,rrule";
+  "id,space_id,type,title,notes,due_at,all_day,timezone,status,priority,amount_cents,currency,rrule,autopay,course_id,source,feed_id";
 const OCC_COLUMNS = "id,item_id,due_at,status,snoozed_until,snooze_count,done_at";
 
 export async function loadSpaces(supabase: Db): Promise<Space[]> {

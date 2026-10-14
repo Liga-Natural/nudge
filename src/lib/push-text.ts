@@ -37,6 +37,7 @@ export const emojiFor = (type: string) => EMOJI[type] ?? "✅";
 
 const T = {
   en: {
+    autopay: (when: string) => `Heads up: autopay is on (${when})`,
     dueNow: "Due now",
     inMinutes: (n: number) => `Due in ${n} minute${n === 1 ? "" : "s"}`,
     inHours: (n: number) => `Due in ${n} hour${n === 1 ? "" : "s"}`,
@@ -57,6 +58,7 @@ const T = {
     paymentsDue: (n: number, money: string) => `💳 ${money} due in 7 days${n > 1 ? ` (${n} bills)` : ""}`,
   },
   es: {
+    autopay: (when: string) => `Aviso: el pago automático está activo (${when})`,
     dueNow: "Vence ahora",
     inMinutes: (n: number) => `Vence en ${n} minuto${n === 1 ? "" : "s"}`,
     inHours: (n: number) => `Vence en ${n} hora${n === 1 ? "" : "s"}`,
@@ -99,7 +101,7 @@ export function describeDue(row: Pick<ReminderRow, "due_at" | "all_day">, now: D
   return t.dueOnAt(formatDay(due, tz, lang), time);
 }
 
-export function buildReminderPayload(rows: ReminderRow[], now: Date): PushPayload {
+export function buildReminderPayload(rows: ReminderRow[], now: Date, opts: { autopay?: Set<string> } = {}): PushPayload {
   const first = rows[0];
   const lang = first.language;
   const tz = first.timezone;
@@ -107,7 +109,11 @@ export function buildReminderPayload(rows: ReminderRow[], now: Date): PushPayloa
   const missed = rows.every((r) => r.label === "missed");
   const lines = rows.map((r) => {
     const money = r.amount_cents != null ? ` · ${formatMoney(r.amount_cents, r.currency, lang)}` : "";
-    const when = r.kind === "snooze" && !r.all_day ? t.snoozeBack : describeDue(r, now, tz, lang);
+    const base = r.kind === "snooze" && !r.all_day ? t.snoozeBack : describeDue(r, now, tz, lang);
+    // Autopay: only ever a heads-up, never "pay now".
+    const due = new Date(r.due_at);
+    const dayAndTime = r.all_day ? formatDay(due, tz, lang) : `${formatDay(due, tz, lang)} · ${formatTime(due, tz, lang)}`;
+    const when = opts.autopay?.has(r.item_id) ? t.autopay(dayAndTime) : base;
     return { head: `${emojiFor(r.item_type)} ${r.title}${money}`, when };
   });
   const prefix = missed ? `${t.missed}: ` : "";

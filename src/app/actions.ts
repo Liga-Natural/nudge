@@ -10,6 +10,8 @@ import { parseQuickAdd } from "@/lib/parser";
 import { defaultReminders, reminderToRow, type ReminderSpec } from "@/lib/reminders";
 import { instantToWall } from "@/lib/time";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { encrypt } from "@/lib/crypto";
+import { checkFeedUrl } from "@/lib/safe-fetch";
 import type { Key } from "@/lib/i18n";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: Key | "setup" };
@@ -47,6 +49,8 @@ export async function parseText(text: string): Promise<Result<{ parsed: ParsedFo
       amountCents: p.amountCents,
       rrule: p.rrule,
       notes: p.trackingNumber ? `Tracking number: ${p.trackingNumber}` : null,
+      autopay: false,
+      courseId: null,
       reminders: dedupeReminders(reminders),
       warnings: p.warnings,
     },
@@ -88,6 +92,8 @@ export async function createItem(raw: ItemInput): Promise<Result<{ id: string }>
       timezone: tz,
       amount_cents: v.amountCents,
       rrule: v.rrule,
+      autopay: v.autopay,
+      course_id: v.courseId,
     })
     .select("id")
     .single();
@@ -125,9 +131,13 @@ export async function updateItem(itemId: string, raw: ItemInput): Promise<Result
       timezone: tz,
       amount_cents: v.amountCents,
       rrule: v.rrule,
+      autopay: v.autopay,
+      course_id: v.courseId,
     })
     .eq("id", itemId);
   if (error) return fail();
+  // Once you change an imported item yourself, the calendar feed stops overriding it.
+  await ctx.supabase.from("items").update({ locally_edited: true }).eq("id", itemId).eq("source", "ics");
   try {
     await saveReminders(ctx, itemId, due ? v.reminders : []);
     const now = new Date();
@@ -236,6 +246,7 @@ const profilePatchSchema = z
     urgent_override: z.boolean(),
     nudge_style: z.enum(["morning", "on_time", "before", "important"]),
     type_switches: z.record(z.string(), z.boolean()),
+    features: z.record(z.string(), z.boolean()),
     track_types: z.array(z.enum(["homework", "payments", "packages", "tasks"])).max(4),
     timezone: z.string().max(60).refine((tz) => {
       try {
@@ -321,5 +332,124 @@ export async function deleteAccount(confirmWord: string): Promise<Result> {
     return fail("settings.deleteAccount.unavailable");
   }
   await ctx.supabase.auth.signOut();
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ payments
+export async function markPaid(occId: string, amountCents: number, paidOn: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  const parsed = z
+    .object({ amountCents: z.number().int().min(0).max(100_000_000), paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })
+    .safeParse({ amountCents, paidOn });
+  if (!parsed.success) return fail();
+  const occ = await loadOccurrence(ctx, occId);
+  if (!occ) return fail();
+  const { data: item } = await ctx.supabase.from("items").select("id,title,currency").eq("id", occ.item_id).single();
+  if (!item) return fail();
+  const done = await finishOccurrence(occId, "done");
+  if (!done.ok) return done;
+  const row = item as { id: string; title: string; currency: string };
+  await ctx.supabase.from("item_payments").insert({
+    user_id: ctx.userId,
+    item_id: row.id,
+    occurrence_id: occId,
+    amount_cents: parsed.data.amountCents,
+    currency: row.currency,
+    paid_on: parsed.data.paidOn,
+  });
+  await ctx.supabase.from("updates").insert({ user_id: ctx.userId, kind: "paid", title: row.title, body: String(parsed.data.amountCents), item_id: row.id });
+  refresh();
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ school
+const courseSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#e4edff"),
+});
+const COURSE_COLORS = ["#e4edff", "#e2f5e8", "#ffefd6", "#f1e7ff", "#ffe6ec", "#dff3f3"];
+
+export async function createCourse(name: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  const { count } = await ctx.supabase.from("courses").select("id", { count: "exact", head: true });
+  const parsed = courseSchema.safeParse({ name, color: COURSE_COLORS[(count ?? 0) % COURSE_COLORS.length] });
+  if (!parsed.success) return fail("school.courseName");
+  const { error } = await ctx.supabase.from("courses").insert({ user_id: ctx.userId, ...parsed.data });
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+export async function deleteCourse(id: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  if (!z.string().uuid().safeParse(id).success) return fail();
+  const { error } = await ctx.supabase.from("courses").delete().eq("id", id);
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ calendar feeds
+const feedSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  url: z.string().trim().min(8).max(2000),
+  defaultType: z.enum(["task", "homework", "payment", "event"]),
+});
+
+export async function createFeed(raw: { name: string; url: string; defaultType: "task" | "homework" | "payment" | "event" }): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  const parsed = feedSchema.safeParse(raw);
+  if (!parsed.success) return fail("feeds.error.bad_url");
+  const check = checkFeedUrl(parsed.data.url);
+  if (!check.ok) return fail(check.reason === "bad_url" ? "feeds.error.bad_url" : check.reason === "not_https" ? "feeds.error.not_https" : "feeds.error.private");
+  let url_encrypted: string;
+  try {
+    url_encrypted = encrypt(check.url.toString());
+  } catch {
+    return fail("feeds.error.key");
+  }
+  const { error } = await ctx.supabase.from("calendar_feeds").insert({
+    user_id: ctx.userId,
+    name: parsed.data.name,
+    url_encrypted,
+    host: check.url.hostname,
+    default_type: parsed.data.defaultType,
+  });
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+export async function deleteFeed(id: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  if (!z.string().uuid().safeParse(id).success) return fail();
+  const { error } = await ctx.supabase.from("calendar_feeds").delete().eq("id", id);
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+/** "Check now": clearing the time makes the minute clock pick this feed up within a minute. */
+export async function syncFeedNow(id: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  if (!z.string().uuid().safeParse(id).success) return fail();
+  const { error } = await ctx.supabase.from("calendar_feeds").update({ last_synced_at: null }).eq("id", id);
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ updates
+export async function markUpdatesRead(): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  await ctx.supabase.from("updates").update({ read_at: new Date().toISOString() }).is("read_at", null);
+  refresh();
   return { ok: true };
 }

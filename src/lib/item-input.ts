@@ -21,6 +21,8 @@ export const itemInputSchema = z.object({
     .nullable()
     .refine((v) => v === null || parseRule(v) !== null, "Bad repeat rule"),
   spaceId: z.string().uuid().nullable(),
+  autopay: z.boolean().default(false),
+  courseId: z.string().uuid().nullable().default(null),
   notes: z.string().max(5000).nullable(),
   reminders: z.array(reminderSpecSchema).max(8),
 });

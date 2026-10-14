@@ -23,6 +23,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_placeholder",
       NEXT_PUBLIC_VAPID_PUBLIC_KEY: "placeholder",
       OWNER_EMAIL: "owner@example.test",
+      ENCRYPTION_KEY: "a".repeat(64),
     },
   },
   projects: [

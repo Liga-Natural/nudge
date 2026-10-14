@@ -6,9 +6,11 @@ import { useState, useTransition } from "react";
 import { createSpace, deleteAccount, deleteSpace, updateProfile, updateSpace, type ProfilePatch } from "@/app/actions";
 import { signOut } from "@/app/login/actions";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import { FEATURE_KEYS } from "@/lib/features";
+import { FeedsSection } from "./feeds-section";
 import { useT } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
-import type { Profile, Space } from "@/lib/types";
+import type { FeedRow, Profile, Space } from "@/lib/types";
 
 const STYLES = ["morning", "on_time", "before", "important"] as const;
 const TYPES = ["task", "homework", "payment", "event", "renewal"] as const;
@@ -27,7 +29,7 @@ function Toggle({ label, body, on, onChange }: { label: string; body?: string; o
   );
 }
 
-export function SettingsForm({ profile, spaces }: { profile: Profile; spaces: Space[] }) {
+export function SettingsForm({ profile, spaces, feeds }: { profile: Profile; spaces: Space[]; feeds: FeedRow[] }) {
   const t = useT();
   const router = useRouter();
   const [p, setP] = useState(profile);
@@ -210,12 +212,23 @@ export function SettingsForm({ profile, spaces }: { profile: Profile; spaces: Sp
         </form>
       </section>
 
-      <section className="card flex flex-col gap-2 p-5" aria-labelledby="s-feat">
-        <h2 id="s-feat" className="text-lg font-bold">
+      <section className="card flex flex-col gap-1 p-5" aria-labelledby="s-feat">
+        <h2 id="s-feat" className="mb-1 text-lg font-bold">
           {t("settings.features")}
         </h2>
-        <p className="text-sm text-muted">{t("settings.features.body")}</p>
+        <p className="mb-2 text-sm text-muted">{t("settings.features.body")}</p>
+        {FEATURE_KEYS.map((k) => (
+          <Toggle
+            key={k}
+            label={t(`feature.${k}` as Key)}
+            body={t(`feature.${k}.body` as Key)}
+            on={p.features?.[k] === true}
+            onChange={(v) => save({ features: { ...(p.features ?? {}), [k]: v } }, true)}
+          />
+        ))}
       </section>
+
+      {p.features?.feeds === true && <FeedsSection feeds={feeds} />}
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-tz">
         <h2 id="s-tz" className="text-lg font-bold">

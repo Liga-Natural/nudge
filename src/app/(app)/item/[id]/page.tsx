@@ -7,7 +7,7 @@ import { describeRule, parseRule } from "@/lib/recurrence";
 import { rowToReminder } from "@/lib/reminders";
 import { loadSpaces, ITEM_COLUMNS, spaceLabel } from "@/lib/queries";
 import { formatDay, formatDayLong, formatMoney, formatTime, instantToWall } from "@/lib/time";
-import { TYPE_BG, TYPE_EMOJI, type EventRow, type ItemRow, type OccurrenceRow, type ReminderDbRow } from "@/lib/types";
+import { TYPE_BG, TYPE_EMOJI, type Course, type EventRow, type ItemRow, type OccurrenceRow, type ReminderDbRow } from "@/lib/types";
 import { ItemActions } from "./item-actions";
 import { EditItem } from "./edit-item";
 
@@ -36,12 +36,14 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   const item = itemData as ItemRow | null;
   if (!item) return notFound;
 
-  const [remRes, occRes, evRes, spaces] = await Promise.all([
+  const [remRes, occRes, evRes, spaces, courseRes] = await Promise.all([
     supabase.from("reminders").select("id,item_id,offset_minutes,days_before,at_time").eq("item_id", id),
     supabase.from("occurrences").select("id,item_id,due_at,status,snoozed_until,snooze_count,done_at").eq("item_id", id).order("due_at", { ascending: false }).limit(40),
     supabase.from("item_events").select("id,item_id,kind,detail,created_at").eq("item_id", id).order("created_at", { ascending: false }).limit(30),
     loadSpaces(supabase),
+    supabase.from("courses").select("id,name,color").order("created_at"),
   ]);
+  const courses = (courseRes.data ?? []) as Course[];
   const reminders = ((remRes.data ?? []) as ReminderDbRow[]).map(rowToReminder);
   const occs = (occRes.data ?? []) as OccurrenceRow[];
   const events = (evRes.data ?? []) as EventRow[];
@@ -71,6 +73,8 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
     amountCents: item.amount_cents,
     rrule: item.rrule,
     spaceId: item.space_id,
+    autopay: !!item.autopay,
+    courseId: item.course_id,
     notes: item.notes,
     reminders,
   };
@@ -159,7 +163,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
         )}
       </section>
 
-      <EditItem initial={initial} spaces={spaces} showSpaces={profile.mode === "full"} itemId={item.id} />
+      <EditItem initial={initial} spaces={spaces} courses={courses} showSpaces={profile.mode === "full"} itemId={item.id} />
 
       <section className="card flex flex-col gap-2 p-5" aria-labelledby="hist-h">
         <h2 id="hist-h" className="text-lg font-bold">

@@ -9,7 +9,7 @@ import type { ItemType } from "@/lib/parser";
 import { describeReminder } from "@/lib/reminder-labels";
 import { describeRule, parseRule } from "@/lib/recurrence";
 import { REMINDER_CHOICES, type ReminderSpec } from "@/lib/reminders";
-import { ITEM_TYPES, TYPE_EMOJI, type Space } from "@/lib/types";
+import { ITEM_TYPES, TYPE_EMOJI, type Course, type Space } from "@/lib/types";
 
 const REPEATS: { key: string; rrule: string | null; label: Key }[] = [
   { key: "none", rrule: null, label: "repeat.none" },
@@ -19,6 +19,7 @@ const REPEATS: { key: string; rrule: string | null; label: Key }[] = [
   { key: "yearly", rrule: "FREQ=YEARLY", label: "repeat.yearly" },
 ];
 
+const START_EARLY: ReminderSpec = { daysBefore: 3, atTime: "09:00" };
 const same = (a: ReminderSpec, b: ReminderSpec) => JSON.stringify(a) === JSON.stringify(b);
 
 export type FormValues = Omit<ItemInput, "spaceId"> & { spaceId: string | null };
@@ -26,6 +27,7 @@ export type FormValues = Omit<ItemInput, "spaceId"> & { spaceId: string | null }
 export function ItemForm({
   initial,
   spaces,
+  courses = [],
   showSpaces,
   submitLabel,
   warnings = [],
@@ -34,6 +36,7 @@ export function ItemForm({
 }: {
   initial: FormValues;
   spaces: Space[];
+  courses?: Course[];
   showSpaces: boolean;
   submitLabel: string;
   warnings?: string[];
@@ -50,6 +53,8 @@ export function ItemForm({
   const [rrule, setRrule] = useState<string | null>(initial.rrule);
   const [spaceId, setSpaceId] = useState<string | null>(initial.spaceId);
   const [notes, setNotes] = useState(initial.notes ?? "");
+  const [autopay, setAutopay] = useState(initial.autopay);
+  const [courseId, setCourseId] = useState<string | null>(initial.courseId);
   const [reminders, setReminders] = useState<ReminderSpec[]>(initial.reminders);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
@@ -79,6 +84,8 @@ export function ItemForm({
         amountCents: cents,
         rrule: date ? rrule : null,
         spaceId,
+        autopay: type === "payment" ? autopay : false,
+        courseId: type === "homework" ? courseId : null,
         notes: notes.trim() || null,
         reminders: date ? reminders : [],
       });
@@ -176,7 +183,12 @@ export function ItemForm({
                 </button>
               );
             })}
-            {extras.map((r) => (
+            {type === "homework" && (
+              <button type="button" aria-pressed={reminders.some((r) => same(r, START_EARLY))} className={chip(reminders.some((r) => same(r, START_EARLY)))} onClick={() => toggle(START_EARLY)}>
+                {t("form.startEarly")}
+              </button>
+            )}
+            {extras.filter((r) => !(type === "homework" && same(r, START_EARLY))).map((r) => (
               <button
                 key={JSON.stringify(r)}
                 type="button"
@@ -191,6 +203,29 @@ export function ItemForm({
           </div>
           {reminders.length === 0 && <p className="mt-2 text-sm text-muted">{t("reminder.none")}</p>}
         </fieldset>
+      )}
+
+      {type === "payment" && (
+        <label className="flex min-h-[44px] items-center gap-3 text-sm font-semibold">
+          <input type="checkbox" className="h-5 w-5 accent-[#e8590c]" checked={autopay} onChange={(e) => setAutopay(e.target.checked)} />
+          {t("form.autopay")}
+        </label>
+      )}
+
+      {type === "homework" && courses.length > 0 && (
+        <div>
+          <label htmlFor="f-course" className="mb-1 block text-sm font-semibold text-muted">
+            {t("form.course")}
+          </label>
+          <select id="f-course" className="field" value={courseId ?? ""} onChange={(e) => setCourseId(e.target.value || null)}>
+            <option value="">{t("school.noCourse")}</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
       {showSpaces && spaces.length > 1 && (

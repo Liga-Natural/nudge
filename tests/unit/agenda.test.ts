@@ -12,7 +12,7 @@ const NOW = at(2026, 10, 14, 16, 30); // Wednesday afternoon
 
 const entry = (id: string, due: Date, extra: Partial<AgendaEntry> = {}): AgendaEntry => ({
   occId: id, itemId: id, title: id, type: "task", dueAt: due.toISOString(), allDay: false, amountCents: null,
-  currency: "USD", spaceId: null, snoozedUntil: null, recurring: false, priority: 0, ...extra,
+  currency: "USD", spaceId: null, snoozedUntil: null, recurring: false, priority: 0, courseId: null, autopay: false, ...extra,
 });
 
 describe("Today groups", () => {
@@ -114,7 +114,7 @@ describe("saving items", () => {
   });
 
   it("rejects bad input", () => {
-    const ok = { title: "x", type: "task", dueLocal: null, allDay: false, amountCents: null, rrule: null, spaceId: null, notes: null, reminders: [] };
+    const ok = { title: "x", type: "task", dueLocal: null, allDay: false, amountCents: null, rrule: null, spaceId: null, autopay: false, courseId: null, notes: null, reminders: [] };
     expect(itemInputSchema.safeParse(ok).success).toBe(true);
     expect(itemInputSchema.safeParse({ ...ok, title: "   " }).success).toBe(false);
     expect(itemInputSchema.safeParse({ ...ok, rrule: "FREQ=HOURLY" }).success).toBe(false);

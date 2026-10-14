@@ -15,6 +15,7 @@ export type Profile = {
   quiet_end: string;
   urgent_override: boolean;
   type_switches: Record<string, boolean>;
+  features: Record<string, boolean>;
   onboarded: boolean;
 };
 
@@ -41,6 +42,10 @@ export type ItemRow = {
   amount_cents: number | null;
   currency: string;
   rrule: string | null;
+  autopay: boolean;
+  course_id: string | null;
+  source?: string;
+  feed_id?: string | null;
 };
 
 export type OccurrenceRow = {
@@ -83,7 +88,13 @@ export type AgendaEntry = {
   snoozedUntil: string | null;
   recurring: boolean;
   priority: number;
+  courseId: string | null;
+  autopay: boolean;
 };
+
+export type Course = { id: string; name: string; color: string };
+export type UpdateRow = { id: string; kind: "new_item" | "changed" | "removed" | "paid" | "info"; title: string; body: string | null; item_id: string | null; created_at: string; read_at: string | null };
+export type FeedRow = { id: string; name: string; host: string; default_type: string; enabled: boolean; last_synced_at: string | null; last_error: string | null; item_count: number };
 
 export const ITEM_TYPES: ItemType[] = ["task", "homework", "payment", "event", "renewal"];
 export const TYPE_EMOJI: Record<string, string> = {

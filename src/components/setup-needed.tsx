@@ -5,7 +5,8 @@ const FILES = [
   "0002_grant_push_subscriptions.sql",
   "0003_core_tables.sql",
   "0004_reminder_clock.sql",
-  "0005_clock_schedule.sql (last — see NIGHT_LOG.md first)",
+  "0005_clock_schedule.sql (see NIGHT_LOG.md first)",
+  "0006_payments_school_feeds.sql (only for Payments, School, Updates and calendar feeds)",
 ];
 
 // Shown instead of the app until the new SQL has been run, so nothing crashes.

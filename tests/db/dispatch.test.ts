@@ -374,3 +374,20 @@ describe("the log", () => {
     expect((n.rows[0] as { n: number }).n).toBe(2);
   });
 });
+
+describe("autopay payments", () => {
+  it("get a heads-up, never a 'pay now' wording", async () => {
+    const { itemId } = await addItem({ type: "payment", due: at(2026, 10, 14, 9, 0), reminders: [{ offsetMinutes: 0 }] });
+    await db.query("update public.items set autopay = true where id = $1", [itemId]);
+    const { push } = await tick(at(2026, 10, 14, 9, 0, 5));
+    expect(push.calls).toHaveLength(1);
+    expect(push.calls[0].payload.body).toMatch(/Heads up: autopay is on/);
+    expect(push.calls[0].payload.body).not.toMatch(/Due now|Due in/);
+  });
+
+  it("normal payments keep the normal wording", async () => {
+    await addItem({ type: "payment", due: at(2026, 10, 14, 9, 0), reminders: [{ offsetMinutes: 0 }] });
+    const { push } = await tick(at(2026, 10, 14, 9, 0, 5));
+    expect(push.calls[0].payload.body).toMatch(/Due now/);
+  });
+});

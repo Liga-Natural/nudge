@@ -73,6 +73,18 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
   const subsByUser = new Map<string, Subscription[]>();
   for (const s of subs) subsByUser.set(s.user_id, [...(subsByUser.get(s.user_id) ?? []), s]);
 
+  // Autopay payments only get a gentle heads-up, never "pay now".
+  const payItems = [...new Set(rows.filter((r) => r.item_type === "payment").map((r) => r.item_id))];
+  const autopay = new Set<string>();
+  if (payItems.length) {
+    try {
+      const flags = await call<{ item_id: string; autopay: boolean }[]>(rpc, "dispatch_item_flags", { p_item_ids: payItems });
+      for (const f of flags) if (f.autopay) autopay.add(f.item_id);
+    } catch {
+      // An older database without the Phase 2 file: fall back to the normal wording.
+    }
+  }
+
   const gone = new Set<string>();
   async function deliver(userId: string, payload: PushPayload): Promise<"sent" | "failed" | "none"> {
     const mine = subsByUser.get(userId) ?? [];
@@ -97,7 +109,7 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
 
   await Promise.all(
     [...byUser.entries()].map(async ([userId, userRows]) => {
-      const outcome = await deliver(userId, buildReminderPayload(userRows, now));
+      const outcome = await deliver(userId, buildReminderPayload(userRows, now, { autopay }));
       for (const r of userRows) {
         const status = outcome === "sent" ? "sent" : outcome === "none" ? "skipped" : "failed";
         await call(rpc, "dispatch_finish", { p_send_id: r.send_id, p_status: status });

@@ -7,7 +7,7 @@ type Row = Record<string, unknown>;
 type Store = { tables: Record<string, Row[]>; userId: string; needsSql?: boolean };
 
 const FAKE_USER = "00000000-0000-4000-8000-000000000001";
-const TABLES = ["profiles", "spaces", "items", "occurrences", "reminders", "item_events", "reminder_sends", "push_subscriptions"];
+const TABLES = ["profiles", "spaces", "items", "occurrences", "reminders", "item_events", "reminder_sends", "push_subscriptions", "courses", "calendar_feeds", "item_payments", "updates"];
 
 function freshStore(): Store {
   return { tables: Object.fromEntries(TABLES.map((t) => [t, [] as Row[]])), userId: FAKE_USER };
@@ -35,6 +35,7 @@ const DEFAULTS: Record<string, () => Row> = {
     quiet_end: "07:00:00",
     urgent_override: true,
     type_switches: {},
+    features: {},
     onboarded: false,
   }),
   spaces: () => ({ id: uuid(), emoji: "📁", is_default: false, notifications_enabled: true, sort_order: 0, created_at: now() }),
@@ -44,6 +45,10 @@ const DEFAULTS: Record<string, () => Row> = {
   item_events: () => ({ id: uuid(), detail: null, created_at: now() }),
   reminder_sends: () => ({ id: uuid(), created_at: now() }),
   push_subscriptions: () => ({ id: uuid(), created_at: now() }),
+  courses: () => ({ id: uuid(), color: "#e4edff", created_at: now() }),
+  calendar_feeds: () => ({ id: uuid(), enabled: true, last_synced_at: null, last_error: null, item_count: 0, created_at: now() }),
+  item_payments: () => ({ id: uuid(), created_at: now() }),
+  updates: () => ({ id: uuid(), body: null, item_id: null, created_at: now(), read_at: null }),
 };
 
 type Filter = (r: Row) => boolean;
@@ -108,6 +113,10 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   }
   limit(n: number) {
     this.max = n;
+    return this;
+  }
+  is(c: string, v: unknown) {
+    this.filters.push((r) => (r[c] ?? null) === v);
     return this;
   }
   abortSignal() {

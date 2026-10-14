@@ -20,6 +20,8 @@ export function toEntries(occs: OccurrenceRow[], items: ItemRow[]): AgendaEntry[
       snoozedUntil: o.snoozed_until,
       recurring: !!i.rrule,
       priority: i.priority,
+      courseId: i.course_id ?? null,
+      autopay: !!i.autopay,
     });
   }
   return out.sort((a, b) => a.dueAt.localeCompare(b.dueAt));
