@@ -18,6 +18,9 @@ export function pgRpc(db: PGlite): Rpc {
       const rows = r.rows.map((row) =>
         Object.fromEntries(Object.entries(row as Record<string, unknown>).map(([k, v]) => [k, plain(v)])),
       );
+      // A function that returns one plain value (not a table) answers with just that value, like Supabase does.
+      const first = rows[0] as Record<string, unknown> | undefined;
+      if (rows.length === 1 && first && Object.keys(first).length === 1 && name in first) return { data: first[name], error: null };
       return { data: rows, error: null };
     } catch (e) {
       return { data: null, error: { message: (e as Error).message } };

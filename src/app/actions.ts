@@ -6,7 +6,9 @@ import { z } from "zod";
 import { getCtx } from "@/lib/context";
 import { dedupeReminders, dueInstant, itemInputSchema, toDueLocal, type ItemInput } from "@/lib/item-input";
 import { buildDues, tomorrowMorning, tonightAt } from "@/lib/occurrences";
-import { parseQuickAdd } from "@/lib/parser";
+import { parseQuickAdd, type ItemType } from "@/lib/parser";
+import { TYPE_FEATURE } from "@/lib/types";
+import { featureOn } from "@/lib/features";
 import { defaultReminders, reminderToRow, type ReminderSpec } from "@/lib/reminders";
 import { instantToWall } from "@/lib/time";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,22 +37,32 @@ export async function parseText(text: string): Promise<Result<{ parsed: ParsedFo
   const clean = z.string().trim().min(1).max(500).safeParse(text);
   if (!clean.success) return fail("add.titleRequired");
   const tz = ctx.profile.timezone;
-  const p = parseQuickAdd(clean.data, { now: new Date(), tz, lang: "auto" });
-  const reminders: ReminderSpec[] = p.dueAt ? defaultReminders(p.type, p.allDay, ctx.profile.nudge_style) : [];
+  const { data: courseData } = await ctx.supabase.from("courses").select("id,name");
+  const courses = (courseData ?? []) as { id: string; name: string }[];
+  const p = parseQuickAdd(clean.data, { now: new Date(), tz, lang: "auto", courses: courses.map((c) => c.name) });
+  // A kind of reminder you have not switched on is offered as the plain kind instead.
+  const wanted: ItemType = p.type === "package" ? "task" : p.type;
+  const gate = TYPE_FEATURE[wanted];
+  const type: ItemType = gate && !featureOn(ctx.profile, gate) ? (wanted === "birthday" ? "event" : "task") : wanted;
+  const subtype = type === "work" ? p.subtype : null;
+  const reminders: ReminderSpec[] = p.dueAt ? defaultReminders(type, p.allDay, ctx.profile.nudge_style, subtype) : [];
   if (p.dueAt && p.reminderOffsetMinutes) reminders.push({ offsetMinutes: p.reminderOffsetMinutes });
   const w = p.dueAt ? instantToWall(p.dueAt, tz) : null;
   return {
     ok: true,
     parsed: {
       title: p.title || clean.data,
-      type: p.type === "package" ? "task" : p.type,
+      type,
+      subtype,
+      location: p.location,
+      checklist: [],
       dueLocal: p.dueAt && w ? toDueLocal(p.dueAt, p.allDay, w) : null,
       allDay: p.allDay,
       amountCents: p.amountCents,
-      rrule: p.rrule,
+      rrule: type === "birthday" ? (p.rrule ?? "FREQ=YEARLY") : p.rrule,
       notes: p.trackingNumber ? `Tracking number: ${p.trackingNumber}` : null,
       autopay: false,
-      courseId: null,
+      courseId: type === "homework" ? (courses.find((c) => c.name === p.courseName)?.id ?? null) : null,
       reminders: dedupeReminders(reminders),
       warnings: p.warnings,
     },
@@ -65,6 +77,25 @@ async function saveReminders(ctx: NonNullable<Awaited<ReturnType<typeof ready>>>
     const { error } = await ctx.supabase.from("reminders").insert(rows);
     if (error) throw new Error(error.message);
   }
+}
+
+async function saveChecklist(ctx: NonNullable<Awaited<ReturnType<typeof ready>>>, itemId: string, list: { text: string; done: boolean }[]) {
+  await ctx.supabase.from("item_checklist").delete().eq("item_id", itemId);
+  if (!list.length) return;
+  const { error } = await ctx.supabase
+    .from("item_checklist")
+    .insert(list.map((c, i) => ({ user_id: ctx.userId, item_id: itemId, text: c.text, done: c.done, sort_order: i })));
+  if (error) throw new Error(error.message);
+}
+
+export async function toggleChecklist(id: string, done: boolean): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  if (!z.string().uuid().safeParse(id).success) return fail();
+  const { error } = await ctx.supabase.from("item_checklist").update({ done }).eq("id", id);
+  if (error) return fail("item.error.save");
+  refresh();
+  return { ok: true };
 }
 
 async function logEvent(ctx: NonNullable<Awaited<ReturnType<typeof ready>>>, itemId: string, kind: string, detail?: string) {
@@ -94,18 +125,27 @@ export async function createItem(raw: ItemInput): Promise<Result<{ id: string }>
       rrule: v.rrule,
       autopay: v.autopay,
       course_id: v.courseId,
+      location: v.location,
+      subtype: v.type === "work" ? v.subtype : null,
     })
     .select("id")
     .single();
-  if (error || !data) return fail();
+  if (error || !data) return fail("item.error.save");
   const id = (data as { id: string }).id;
   try {
     await saveReminders(ctx, id, due ? v.reminders : []);
+    await saveChecklist(ctx, id, v.checklist);
     const dues = buildDues(due, v.rrule, tz, new Date());
-    await ctx.supabase.rpc("sync_item_occurrences", { p_item_id: id, p_dues: dues.map((d) => d.toISOString()) });
+    // Without these times the item would never remind you, so a failure here must be loud.
+    const { error: occError } = await ctx.supabase.rpc("sync_item_occurrences", { p_item_id: id, p_dues: dues.map((d) => d.toISOString()) });
+    if (occError) {
+      await ctx.supabase.from("items").delete().eq("id", id);
+      return fail("item.error.times");
+    }
     await logEvent(ctx, id, "created");
   } catch {
-    return fail();
+    await ctx.supabase.from("items").delete().eq("id", id);
+    return fail("item.error.reminders");
   }
   refresh();
   return { ok: true, id };
@@ -133,13 +173,16 @@ export async function updateItem(itemId: string, raw: ItemInput): Promise<Result
       rrule: v.rrule,
       autopay: v.autopay,
       course_id: v.courseId,
+      location: v.location,
+      subtype: v.type === "work" ? v.subtype : null,
     })
     .eq("id", itemId);
-  if (error) return fail();
+  if (error) return fail("item.error.save");
   // Once you change an imported item yourself, the calendar feed stops overriding it.
   await ctx.supabase.from("items").update({ locally_edited: true }).eq("id", itemId).eq("source", "ics");
   try {
     await saveReminders(ctx, itemId, due ? v.reminders : []);
+    await saveChecklist(ctx, itemId, v.checklist);
     const now = new Date();
     // Keep overdue open ones that are still part of the series, so editing never hides a late item.
     const { data: open } = await ctx.supabase
@@ -154,10 +197,11 @@ export async function updateItem(itemId: string, raw: ItemInput): Promise<Result
     } else {
       for (const o of (open ?? []) as { due_at: string }[]) if (!dues.includes(o.due_at)) dues.push(o.due_at);
     }
-    await ctx.supabase.rpc("sync_item_occurrences", { p_item_id: itemId, p_dues: dues });
+    const { error: occError } = await ctx.supabase.rpc("sync_item_occurrences", { p_item_id: itemId, p_dues: dues });
+    if (occError) return fail("item.error.times");
     await logEvent(ctx, itemId, "edited");
   } catch {
-    return fail();
+    return fail("item.error.reminders");
   }
   refresh();
   return { ok: true };
@@ -194,6 +238,9 @@ async function finishOccurrence(occId: string, status: "done" | "skipped"): Prom
   const { data: item } = await ctx.supabase.from("items").select("rrule").eq("id", occ.item_id).single();
   if (!(item as { rrule: string | null } | null)?.rrule) {
     await ctx.supabase.from("items").update({ status }).eq("id", occ.item_id);
+  } else {
+    // Next time starts with a clean checklist.
+    await ctx.supabase.from("item_checklist").update({ done: false }).eq("item_id", occ.item_id);
   }
   await logEvent(ctx, occ.item_id, status);
   refresh();

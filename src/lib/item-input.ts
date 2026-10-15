@@ -10,7 +10,7 @@ export const reminderSpecSchema = z.union([
 
 export const itemInputSchema = z.object({
   title: z.string().trim().min(1).max(200),
-  type: z.enum(["task", "homework", "payment", "package", "event", "renewal"]),
+  type: z.enum(["task", "homework", "payment", "package", "event", "renewal", "work", "habit", "birthday"]),
   /** Local date and time in the person's own zone: "YYYY-MM-DDTHH:mm", or empty for no date. */
   dueLocal: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/).nullable(),
   allDay: z.boolean(),
@@ -24,6 +24,12 @@ export const itemInputSchema = z.object({
   autopay: z.boolean().default(false),
   courseId: z.string().uuid().nullable().default(null),
   notes: z.string().max(5000).nullable(),
+  /** Where (appointments, birthdays, game days). */
+  location: z.string().trim().max(200).nullable().default(null),
+  /** Work items only: game_day | registration | sponsor | posting. */
+  subtype: z.enum(["game_day", "registration", "sponsor", "posting"]).nullable().default(null),
+  /** A small to-do list inside the reminder. */
+  checklist: z.array(z.object({ text: z.string().trim().min(1).max(200), done: z.boolean().default(false) })).max(40).default([]),
   reminders: z.array(reminderSpecSchema).max(8),
 });
 export type ItemInput = z.infer<typeof itemInputSchema>;

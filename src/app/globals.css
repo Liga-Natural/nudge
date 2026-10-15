@@ -24,6 +24,9 @@
   --color-task: #f1e7ff;
   --color-event: #ffe6ec;
   --color-renewal: #dff3f3;
+  --color-work: #e3e8ff;
+  --color-habit: #e6f4d9;
+  --color-birthday: #ffe3f1;
   --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 6px 20px rgb(28 25 23 / 0.06);
 }
 

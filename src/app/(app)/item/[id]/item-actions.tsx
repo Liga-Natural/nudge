@@ -12,11 +12,13 @@ export function ItemActions({
   status,
   recurring,
   itemId,
+  habit = false,
 }: {
   occId: string | null;
   status: string;
   recurring: boolean;
   itemId: string;
+  habit?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -47,7 +49,7 @@ export function ItemActions({
               ⏰ {t("action.snooze")}
             </button>
             <button className="btn-quiet" disabled={pending} onClick={() => run(() => markSkipped(occId))}>
-              {t("action.skip")}
+              {habit ? t("habits.skipToday") : t("action.skip")}
             </button>
           </div>
         </>

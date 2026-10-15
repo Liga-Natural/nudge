@@ -32,10 +32,23 @@ export type SummaryRow = {
   payments_cents: number;
 };
 
+export type HabitSummaryRow = { user_id: string; timezone: string; language: Lang; local_date: string; pending: number; total: number };
+export type GradeRow = {
+  grade_id: string;
+  user_id: string;
+  course_name: string;
+  title: string;
+  score: number | string;
+  out_of: number | string;
+  percent: number | string;
+  timezone: string;
+  language: Lang;
+};
+
 export type PushAction = { action: string; title: string };
 export type PushPayload = { title: string; body: string; url: string; tag?: string; occ?: string; actions?: PushAction[] };
 
-const EMOJI: Record<string, string> = { task: "✅", homework: "📚", payment: "💳", package: "📦", event: "📅", renewal: "🔁" };
+const EMOJI: Record<string, string> = { task: "✅", homework: "📚", payment: "💳", package: "📦", event: "📅", renewal: "🔁", work: "💼", habit: "🌱", birthday: "🎂" };
 export const emojiFor = (type: string) => EMOJI[type] ?? "✅";
 
 const T = {
@@ -55,6 +68,9 @@ const T = {
     snoozeBack: "Snooze is over",
     missed: "Missed while you were away",
     many: (n: number) => `${n} reminders`,
+    habitsTitle: "Habits 🌱",
+    habitsLeft: (n: number, total: number) => `${n} of ${total} habit${total === 1 ? "" : "s"} still to do today`,
+    gradeTitle: (course: string) => (course ? `New grade posted in ${course}` : "New grade posted"),
     summaryTitle: "Good morning ☀️",
     actDone: "Done",
     act10: "10 min",
@@ -79,6 +95,9 @@ const T = {
     snoozeBack: "Se acabó la pausa",
     missed: "Perdido mientras no estabas",
     many: (n: number) => `${n} recordatorios`,
+    habitsTitle: "Hábitos 🌱",
+    habitsLeft: (n: number, total: number) => `Te faltan ${n} de ${total} hábito${total === 1 ? "" : "s"} hoy`,
+    gradeTitle: (course: string) => (course ? `Nueva nota en ${course}` : "Nueva nota publicada"),
     summaryTitle: "Buenos días ☀️",
     actDone: "Hecho",
     act10: "10 min",
@@ -160,4 +179,20 @@ export function buildSummaryPayload(row: SummaryRow): PushPayload {
   if (row.late_count > 0) parts.push(t.lateThings(row.late_count));
   if (row.payments_count > 0) parts.push(t.paymentsDue(row.payments_count, formatMoney(row.payments_cents, "USD", row.language)));
   return { title: t.summaryTitle, body: parts.join(" · "), url: "/", tag: `summary-${row.local_date}` };
+}
+
+export function buildHabitPayload(row: HabitSummaryRow): PushPayload {
+  const t = T[row.language];
+  return { title: t.habitsTitle, body: t.habitsLeft(row.pending, row.total), url: "/habits", tag: `habits-${row.local_date}` };
+}
+
+const num = (v: number | string) => Number(v);
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+/** One push for the new grades of one class. */
+export function buildGradePayload(rows: GradeRow[]): PushPayload {
+  const first = rows[0];
+  const t = T[first.language];
+  const lines = rows.slice(0, 4).map((g) => `${g.title}: ${fmt(num(g.score))}/${fmt(num(g.out_of))} (${fmt(num(g.percent))}%)`);
+  return { title: t.gradeTitle(first.course_name), body: lines.join("\n"), url: "/grades", tag: `grade-${first.grade_id}` };
 }

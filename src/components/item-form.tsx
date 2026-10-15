@@ -7,9 +7,9 @@ import type { Key } from "@/lib/i18n";
 import type { ItemInput } from "@/lib/item-input";
 import type { ItemType } from "@/lib/parser";
 import { describeReminder } from "@/lib/reminder-labels";
-import { describeRule, parseRule } from "@/lib/recurrence";
-import { REMINDER_CHOICES, type ReminderSpec } from "@/lib/reminders";
-import { ITEM_TYPES, TYPE_EMOJI, type Course, type Space } from "@/lib/types";
+import { describeRule, parseRule, ruleToString } from "@/lib/recurrence";
+import { defaultReminders, REMINDER_CHOICES, type ReminderSpec } from "@/lib/reminders";
+import { TYPE_EMOJI, type Course, type Space } from "@/lib/types";
 
 const REPEATS: { key: string; rrule: string | null; label: Key }[] = [
   { key: "none", rrule: null, label: "repeat.none" },
@@ -21,13 +21,22 @@ const REPEATS: { key: string; rrule: string | null; label: Key }[] = [
 
 const START_EARLY: ReminderSpec = { daysBefore: 3, atTime: "09:00" };
 const same = (a: ReminderSpec, b: ReminderSpec) => JSON.stringify(a) === JSON.stringify(b);
+const WORK_KINDS = ["game_day", "registration", "sponsor", "posting"] as const;
+const RENEWAL_DAYS = [3, 7, 14, 30, 60];
+const WITH_PLACE: ItemType[] = ["event", "birthday", "work"];
+// Monday first, as a week reads in the US.
+const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 export type FormValues = Omit<ItemInput, "spaceId"> & { spaceId: string | null };
+
+const daysBeforeOf = (reminders: ReminderSpec[]) =>
+  Math.max(0, ...reminders.map((r) => ("daysBefore" in r ? r.daysBefore : 0))) || 14;
 
 export function ItemForm({
   initial,
   spaces,
   courses = [],
+  enabledTypes,
   showSpaces,
   submitLabel,
   warnings = [],
@@ -37,6 +46,8 @@ export function ItemForm({
   initial: FormValues;
   spaces: Space[];
   courses?: Course[];
+  /** The kinds of reminder that are switched on. The item's own kind is always shown. */
+  enabledTypes: ItemType[];
   showSpaces: boolean;
   submitLabel: string;
   warnings?: string[];
@@ -56,16 +67,56 @@ export function ItemForm({
   const [autopay, setAutopay] = useState(initial.autopay);
   const [courseId, setCourseId] = useState<string | null>(initial.courseId);
   const [reminders, setReminders] = useState<ReminderSpec[]>(initial.reminders);
+  const [location, setLocation] = useState(initial.location ?? "");
+  const [subtype, setSubtype] = useState<(typeof WORK_KINDS)[number] | null>(initial.subtype);
+  const [checklist, setChecklist] = useState<{ text: string; done: boolean }[]>(initial.checklist);
+  const [newCheck, setNewCheck] = useState("");
+  const [renewalDays, setRenewalDays] = useState(daysBeforeOf(initial.reminders));
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
+  const types = enabledTypes.includes(type) ? enabledTypes : [...enabledTypes, type];
   const presetRule = REPEATS.find((r) => r.rrule === rrule);
   const customRule = rrule && !presetRule ? parseRule(rrule) : null;
   const presets = REMINDER_CHOICES.map((c) => c.spec);
   const extras = reminders.filter((r) => !presets.some((p) => same(p, r)));
+  const weekdayFmt = new Intl.DateTimeFormat(lang === "es" ? "es-US" : "en-US", { weekday: "short", timeZone: "UTC" });
+  const parsedRule = rrule ? parseRule(rrule) : null;
+  const pickedDays = parsedRule?.freq === "WEEKLY" ? (parsedRule.byDay ?? []) : parsedRule?.freq === "DAILY" ? WEEK : [];
 
   function toggle(spec: ReminderSpec) {
     setReminders((cur) => (cur.some((r) => same(r, spec)) ? cur.filter((r) => !same(r, spec)) : [...cur, spec]));
+  }
+
+  function changeType(next: ItemType) {
+    // If the reminders are still the ones the old kind came with, swap in the new kind's own.
+    const wasDefault = same2(reminders, defaultReminders(type, allDay, "on_time", subtype));
+    setType(next);
+    if (next === "birthday" && !rrule && date) setRrule("FREQ=YEARLY");
+    if (next === "work" && !subtype) setSubtype("game_day");
+    if (date && (wasDefault || reminders.length === 0)) {
+      const fresh = defaultReminders(next, allDay, "on_time", next === "work" ? (subtype ?? "game_day") : null);
+      setReminders(fresh);
+      if (next === "renewal") setRenewalDays(daysBeforeOf(fresh));
+    }
+  }
+
+  function pickRenewalDays(n: number) {
+    setRenewalDays(n);
+    setReminders([{ daysBefore: n, atTime: "09:00" }, { daysBefore: 0, atTime: "09:00" }]);
+  }
+
+  function pickWeekdays(days: number[]) {
+    if (days.length === 0) return setRrule(null);
+    if (days.length === 7) return setRrule("FREQ=DAILY");
+    setRrule(ruleToString({ freq: "WEEKLY", interval: 1, byDay: [...days].sort((a, b) => a - b) }));
+  }
+
+  function addCheck() {
+    const text = newCheck.trim();
+    if (!text) return;
+    setChecklist((cur) => (cur.length >= 40 ? cur : [...cur, { text: text.slice(0, 200), done: false }]));
+    setNewCheck("");
   }
 
   function submit(e: React.FormEvent) {
@@ -75,6 +126,9 @@ export function ItemForm({
     const cents = amount.trim() === "" ? null : Math.round(parseFloat(amount.replace(/,/g, "")) * 100);
     if (cents !== null && (Number.isNaN(cents) || cents < 0)) return setError(t("common.error"));
     const dueLocal = date ? (allDay ? date : `${date}T${time || "09:00"}`) : null;
+    // A half-typed checklist line is not lost.
+    const pendingCheck = newCheck.trim();
+    const finalChecklist = pendingCheck ? [...checklist, { text: pendingCheck.slice(0, 200), done: false }] : checklist;
     start(async () => {
       const r = await onSubmit({
         title: title.trim(),
@@ -87,6 +141,9 @@ export function ItemForm({
         autopay: type === "payment" ? autopay : false,
         courseId: type === "homework" ? courseId : null,
         notes: notes.trim() || null,
+        location: WITH_PLACE.includes(type) && location.trim() ? location.trim() : null,
+        subtype: type === "work" ? subtype : null,
+        checklist: finalChecklist,
         reminders: date ? reminders : [],
       });
       if (!r.ok) setError(r.error === "setup" ? t("setup.title") : t(r.error));
@@ -114,18 +171,40 @@ export function ItemForm({
       <fieldset>
         <legend className="mb-1 text-sm font-semibold text-muted">{t("add.field.type")}</legend>
         <div className="flex flex-wrap gap-2">
-          {ITEM_TYPES.map((ty) => (
-            <button key={ty} type="button" aria-pressed={type === ty} className={chip(type === ty)} onClick={() => setType(ty)}>
+          {types.map((ty) => (
+            <button key={ty} type="button" aria-pressed={type === ty} className={chip(type === ty)} onClick={() => changeType(ty)}>
               <span aria-hidden>{TYPE_EMOJI[ty]}</span> {t(`type.${ty}` as Key)}
             </button>
           ))}
         </div>
       </fieldset>
 
+      {type === "work" && (
+        <fieldset>
+          <legend className="mb-1 text-sm font-semibold text-muted">{t("form.workKind")}</legend>
+          <div className="flex flex-wrap gap-2">
+            {WORK_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={subtype === k}
+                className={chip(subtype === k)}
+                onClick={() => {
+                  setSubtype(k);
+                  if (date && same2(reminders, defaultReminders("work", allDay, "on_time", subtype))) setReminders(defaultReminders("work", allDay, "on_time", k));
+                }}
+              >
+                {t(`work.${k}` as Key)}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="f-date" className="mb-1 block text-sm font-semibold text-muted">
-            {t("add.field.date")}
+            {type === "renewal" ? t("form.expires") : t("add.field.date")}
           </label>
           <input id="f-date" type="date" className="field" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
@@ -140,6 +219,15 @@ export function ItemForm({
         <input type="checkbox" className="h-5 w-5 accent-[#e8590c]" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />
         {t("common.allDay")}
       </label>
+
+      {WITH_PLACE.includes(type) && (
+        <div>
+          <label htmlFor="f-place" className="mb-1 block text-sm font-semibold text-muted">
+            {t("form.location")} <span className="font-normal">({t("common.optional")})</span>
+          </label>
+          <input id="f-place" className="field" value={location} maxLength={200} onChange={(e) => setLocation(e.target.value)} />
+        </div>
+      )}
 
       <div>
         <label htmlFor="f-amount" className="mb-1 block text-sm font-semibold text-muted">
@@ -170,6 +258,43 @@ export function ItemForm({
           {customRule && <option value="custom">{describeRule(customRule, lang)}</option>}
         </select>
       </div>
+
+      {(type === "habit" || type === "work") && date && (
+        <fieldset>
+          <legend className="mb-1 text-sm font-semibold text-muted">{t("form.repeatOn")}</legend>
+          <div className="flex flex-wrap gap-2">
+            {WEEK.map((d) => {
+              const on = pickedDays.includes(d);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={on}
+                  className={`${chip(on)} !px-3`}
+                  onClick={() => pickWeekdays(on ? pickedDays.filter((x) => x !== d) : [...pickedDays, d])}
+                >
+                  {weekdayFmt.format(new Date(Date.UTC(2024, 0, 7 + d)))}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
+
+      {type === "renewal" && date && (
+        <fieldset>
+          <legend className="mb-1 text-sm font-semibold text-muted">{t("form.renewalDays")}</legend>
+          <div className="flex flex-wrap gap-2">
+            {[...new Set([...RENEWAL_DAYS, renewalDays])]
+              .sort((a, b) => a - b)
+              .map((n) => (
+                <button key={n} type="button" aria-pressed={renewalDays === n} className={chip(renewalDays === n)} onClick={() => pickRenewalDays(n)}>
+                  {t("form.daysBefore", { n })}
+                </button>
+              ))}
+          </div>
+        </fieldset>
+      )}
 
       {date && (
         <fieldset>
@@ -243,6 +368,51 @@ export function ItemForm({
         </div>
       )}
 
+      <fieldset>
+        <legend className="mb-1 text-sm font-semibold text-muted">
+          {t("form.checklist")} <span className="font-normal">({t("common.optional")})</span>
+        </legend>
+        {checklist.length > 0 && (
+          <ul className="mb-2 flex flex-col gap-1">
+            {checklist.map((c, i) => (
+              <li key={`${i}-${c.text}`} className="flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-1">
+                <span className="min-w-0 truncate">{c.text}</span>
+                <button
+                  type="button"
+                  className="btn-quiet flex-none"
+                  aria-label={`${t("action.delete")}: ${c.text}`}
+                  onClick={() => setChecklist((cur) => cur.filter((_, n) => n !== i))}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex gap-2">
+          <label htmlFor="f-check" className="sr-only">
+            {t("form.checklist.placeholder")}
+          </label>
+          <input
+            id="f-check"
+            className="field"
+            placeholder={t("form.checklist.placeholder")}
+            value={newCheck}
+            maxLength={200}
+            onChange={(e) => setNewCheck(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCheck();
+              }
+            }}
+          />
+          <button type="button" className="btn-quiet flex-none" onClick={addCheck}>
+            {t("form.checklist.add")}
+          </button>
+        </div>
+      </fieldset>
+
       <div>
         <label htmlFor="f-notes" className="mb-1 block text-sm font-semibold text-muted">
           {t("add.field.notes")} <span className="font-normal">({t("common.optional")})</span>
@@ -265,4 +435,9 @@ export function ItemForm({
       )}
     </form>
   );
+}
+
+function same2(a: ReminderSpec[], b: ReminderSpec[]) {
+  const key = (r: ReminderSpec) => JSON.stringify(r);
+  return a.length === b.length && a.every((x) => b.some((y) => key(x) === key(y)));
 }

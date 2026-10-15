@@ -5,9 +5,10 @@ import { useState } from "react";
 import { updateItem } from "@/app/actions";
 import { ItemForm, type FormValues } from "@/components/item-form";
 import { useT } from "@/lib/i18n/client";
+import type { ItemType } from "@/lib/parser";
 import type { Course, Space } from "@/lib/types";
 
-export function EditItem({ initial, spaces, courses, showSpaces, itemId }: { initial: FormValues; spaces: Space[]; courses: Course[]; showSpaces: boolean; itemId: string }) {
+export function EditItem({ initial, spaces, courses, showSpaces, itemId, enabledTypes }: { initial: FormValues; spaces: Space[]; courses: Course[]; showSpaces: boolean; itemId: string; enabledTypes: ItemType[] }) {
   const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -25,6 +26,7 @@ export function EditItem({ initial, spaces, courses, showSpaces, itemId }: { ini
         initial={initial}
         spaces={spaces}
         courses={courses}
+        enabledTypes={enabledTypes}
         showSpaces={showSpaces}
         submitLabel={t("action.save")}
         onSubmit={async (values) => {

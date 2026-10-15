@@ -5,9 +5,10 @@ import { useState, useTransition } from "react";
 import { createItem, parseText, type ParsedForm } from "@/app/actions";
 import { ItemForm } from "@/components/item-form";
 import { useT } from "@/lib/i18n/client";
+import type { ItemType } from "@/lib/parser";
 import type { Course, Space } from "@/lib/types";
 
-export function AddFlow({ spaces, courses, defaultSpaceId, showSpaces }: { spaces: Space[]; courses: Course[]; defaultSpaceId: string | null; showSpaces: boolean }) {
+export function AddFlow({ spaces, courses, defaultSpaceId, showSpaces, enabledTypes }: { spaces: Space[]; courses: Course[]; defaultSpaceId: string | null; showSpaces: boolean; enabledTypes: ItemType[] }) {
   const t = useT();
   const router = useRouter();
   const [text, setText] = useState("");
@@ -39,6 +40,7 @@ export function AddFlow({ spaces, courses, defaultSpaceId, showSpaces }: { space
           initial={{ ...rest, spaceId: defaultSpaceId }}
           spaces={spaces}
           courses={courses}
+          enabledTypes={enabledTypes}
           showSpaces={showSpaces}
           warnings={warnings}
           submitLabel={t("add.save")}

@@ -5,7 +5,8 @@ import { ruleToString, type Freq, type Rule } from "./recurrence";
 // Turns plain words ("pay phone bill friday 5pm $45") into an item for the person to confirm.
 // No AI: chrono-node reads dates and times, our own rules read the rest.
 
-export type ItemType = "task" | "homework" | "payment" | "package" | "event" | "renewal";
+export type ItemType = "task" | "homework" | "payment" | "package" | "event" | "renewal" | "work" | "habit" | "birthday";
+export type WorkKind = "game_day" | "registration" | "sponsor" | "posting";
 
 export type ParsedItem = {
   title: string;
@@ -17,6 +18,12 @@ export type ParsedItem = {
   /** "Remind me N minutes before" typed by the person, if any. */
   reminderOffsetMinutes: number | null;
   trackingNumber: string | null;
+  /** For work items: what kind (game day, registrations, sponsor follow-up, posting). */
+  subtype: WorkKind | null;
+  /** The name of one of the person's classes, when the words name it ("math hw friday"). */
+  courseName: string | null;
+  /** Where, from "@ Dr Lopez office" at the end. */
+  location: string | null;
   warnings: ("past" | "no_date" | "package_later")[];
 };
 
@@ -76,8 +83,16 @@ function extractRepeat(text: string): { text: string; rule: Rule | null } {
 
   const monthDay = String.raw`(?:\s+(?:on the|on|el dia|el)\s+(\d{1,2})(?:st|nd|rd|th)?)?`;
 
+  // every 15th / every month on the 15th / the 15th of every month / monthly on the 15th / cada 15
+  let m = /\b(?:every|each|cada)\s+(?:month\s+)?(?:on\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\b(?!\s+(?:week|day|month|year))/.exec(t);
+  if (!m) m = /\b(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)\s+of\s+(?:every|each)\s+month\b/.exec(t);
+  if (!m) m = /\b(?:monthly|mensual(?:mente)?)\s+(?:on\s+|el\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\b/.exec(t);
+  if (m && Number(m[1]) >= 1 && Number(m[1]) <= 31) {
+    return { text: cut(text, m.index, m[0].length), rule: { freq: "MONTHLY", interval: 1, byMonthDay: Number(m[1]) } };
+  }
+
   // every 2 weeks / cada 2 semanas
-  let m = new RegExp(String.raw`\b(?:every|each|cada)\s+(\d+)\s*(day|week|month|year|dia|semana|mes|ano)s?\b${monthDay}`).exec(t);
+  m = new RegExp(String.raw`\b(?:every|each|cada)\s+(\d+)\s*(day|week|month|year|dia|semana|mes|ano)s?\b${monthDay}`).exec(t);
   if (m) {
     matched = m;
     rule = freqRule(m[2], Number(m[1]), m[3]);
@@ -124,15 +139,33 @@ function freqRule(word: string, interval: number, dayOfMonth?: string): Rule {
   return rule;
 }
 
-const HOMEWORK_RE = /\b(homework|assignment|exam|quiz|test|essay|project|midterm|final|tarea|tareas|deberes|examen|ensayo|proyecto|prueba)\b/;
+const HOMEWORK_RE = /\b(homework|hw|hmwk|worksheet|assignment|exam|quiz|test|essay|project|midterm|final|tarea|tareas|deberes|examen|ensayo|proyecto|prueba)\b/;
 const PAYMENT_RE = /\b(pay|bill|rent|invoice|subscription|tuition|mortgage|pagar|pago|factura|renta|alquiler|recibo|suscripcion|matricula|hipoteca)\b/;
 const RENEWAL_RE = /\b(renew|renewal|registration|license|licence|passport|expires?|expiration|renovar|renovacion|registro|licencia|pasaporte|vence)\b/;
 const EVENT_RE = /\b(dentist|doctor|appointment|meeting|call|interview|party|game|match|practice|dentista|doctor|cita|reunion|llamada|entrevista|fiesta|partido|practica)\b/;
 
-function detectType(text: string, hasAmount: boolean): ItemType {
+const BIRTHDAY_RE = /\b(birthday|bday|b-day|cumpleanos|cumple)\b/;
+const BIRTHDAY_NOT = /\b(gift|present|cake|card|balloons?|decorations?|regalo|torta|tarjeta)\b/;
+const WORK_RE =
+  /\b(sponsors?|game ?day|registrations|player registration|team registration|sign-?ups?|roster|posting schedule|liga natural|style jerseys|post (?:on|to|about)|reel|tiktok|instagram)\b/;
+const HABIT_RE = /\b(habit|habits|routine|habito|habitos|rutina)\b/;
+const HABIT_VERB_RE = /\b(workout|gym|meditate|meditation|stretch|journal|run|walk|study|read|ejercicio|meditar|caminar|estudiar|leer)\b/;
+
+/** Which kind of work item the words describe. */
+export function workKind(t: string): WorkKind {
+  if (/\bsponsors?\b/.test(t)) return "sponsor";
+  if (/\bregistrations?\b|\bsign-?ups?\b/.test(t)) return "registration";
+  if (/\bgame ?day\b/.test(t)) return "game_day";
+  return "posting";
+}
+
+function detectType(text: string, o: { hasAmount: boolean; hasDate: boolean; hasRepeat: boolean }): ItemType {
   const t = norm(text);
+  if (BIRTHDAY_RE.test(t) && !BIRTHDAY_NOT.test(t) && o.hasDate) return "birthday";
+  if (HABIT_RE.test(t) || (o.hasRepeat && HABIT_VERB_RE.test(t) && !PAYMENT_RE.test(t))) return "habit";
+  if (WORK_RE.test(t)) return "work";
   if (HOMEWORK_RE.test(t)) return "homework";
-  if (PAYMENT_RE.test(t) || hasAmount) return "payment";
+  if (PAYMENT_RE.test(t) || o.hasAmount) return "payment";
   if (RENEWAL_RE.test(t)) return "renewal";
   if (EVENT_RE.test(t)) return "event";
   return "task";
@@ -159,10 +192,30 @@ function pickChrono(text: string, ref: Date, lang: Lang | "auto") {
   return en.length ? en : tryParse("es");
 }
 
-export function parseQuickAdd(input: string, opts: { now: Date; tz: string; lang: Lang | "auto" }): ParsedItem {
+/** "...@ Dr Lopez office" at the end of the words is the place. */
+function extractLocation(text: string): { text: string; location: string | null } {
+  const m = /\s@\s?([^@$]{2,120})$/.exec(text);
+  if (!m) return { text, location: null };
+  return { text: text.slice(0, m.index), location: m[1].trim() };
+}
+
+/** Which of the person's classes the words name: a word of the class name (3+ letters) found in the text, if only one class fits. */
+export function matchCourse(text: string, courses: string[]): string | null {
+  const words = new Set(norm(text).split(/[^a-z0-9]+/).filter(Boolean));
+  const hits = courses.filter((c) =>
+    norm(c)
+      .split(/[^a-z0-9]+/)
+      .some((w) => w.length >= 3 && !/^\d+$/.test(w) && words.has(w)),
+  );
+  return hits.length === 1 ? hits[0] : null;
+}
+
+export function parseQuickAdd(input: string, opts: { now: Date; tz: string; lang: Lang | "auto"; courses?: string[] }): ParsedItem {
   const { now, tz } = opts;
   let text = input.trim().replace(/\s+/g, " ");
   const warnings: ParsedItem["warnings"] = [];
+  const place = extractLocation(text);
+  text = place.text;
 
   // Tracking numbers first, so their digits are not mistaken for dates or money.
   let trackingNumber: string | null = null;
@@ -236,8 +289,11 @@ export function parseQuickAdd(input: string, opts: { now: Date; tz: string; lang
   }
   if (dueAt && !repeat.rule && dueAt.getTime() < now.getTime() - 60_000) warnings.push("past");
 
-  const type = detectType(`${input}`, amount.cents !== null);
+  const type = detectType(`${input}`, { hasAmount: amount.cents !== null, hasDate: dueAt !== null, hasRepeat: !!repeat.rule });
   const title = tidyTitle(text) || tidyTitle(input);
+  // A birthday comes back every year, without having to say so.
+  const rrule = repeat.rule ? ruleToString(repeat.rule) : type === "birthday" && dueAt ? "FREQ=YEARLY" : null;
+  const courseName = type === "homework" && opts.courses?.length ? matchCourse(input, opts.courses) : null;
 
   return {
     title,
@@ -245,9 +301,12 @@ export function parseQuickAdd(input: string, opts: { now: Date; tz: string; lang
     dueAt,
     allDay,
     amountCents: amount.cents,
-    rrule: repeat.rule ? ruleToString(repeat.rule) : null,
+    rrule,
     reminderOffsetMinutes: reminder.minutes,
     trackingNumber,
+    subtype: type === "work" ? workKind(norm(input)) : null,
+    courseName,
+    location: place.location,
     warnings,
   };
 }

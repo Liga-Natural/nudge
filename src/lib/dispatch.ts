@@ -1,7 +1,11 @@
 import { expandRule } from "./recurrence";
 import {
+  buildGradePayload,
+  buildHabitPayload,
   buildReminderPayload,
   buildSummaryPayload,
+  type GradeRow,
+  type HabitSummaryRow,
   type PushPayload,
   type ReminderRow,
   type SummaryRow,
@@ -86,7 +90,13 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
 
   const summaries = opts.withSummaries === false ? [] : await call<SummaryRow[]>(rpc, "dispatch_summaries", { p_now: iso });
 
-  const userIds = [...new Set([...rows.map((r) => r.user_id), ...summaries.map((s) => s.user_id)])];
+  // Extras from the Phase 3 files. An older database simply does not have them yet.
+  const habitSummaries = opts.withSummaries === false ? [] : await tryCall<HabitSummaryRow[]>(rpc, "dispatch_habit_summaries", { p_now: iso });
+  const grades = opts.withSummaries === false ? [] : await tryCall<GradeRow[]>(rpc, "dispatch_grade_notifications", { p_limit: 50 });
+
+  const userIds = [
+    ...new Set([...rows.map((r) => r.user_id), ...summaries.map((s) => s.user_id), ...habitSummaries.map((h) => h.user_id), ...grades.map((g) => g.user_id)]),
+  ];
   const subs = userIds.length
     ? await call<Subscription[]>(rpc, "dispatch_subscriptions", { p_user_ids: userIds })
     : [];
@@ -169,6 +179,21 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
     if (d.outcome === "sent") result.summaries++;
   }
 
+  for (const h of habitSummaries) {
+    const d = await deliver(h.user_id, buildHabitPayload(h));
+    await logAttempt({ userId: h.user_id, sendId: null, kind: "habit", title: "Habit summary", d });
+  }
+
+  // "New grade posted in <class>": one push per person per class. If it fails the grades go back in the queue.
+  const gradeKey = (g: GradeRow) => `${g.user_id}|${g.course_name}`;
+  const gradeGroups = new Map<string, GradeRow[]>();
+  for (const g of grades) gradeGroups.set(gradeKey(g), [...(gradeGroups.get(gradeKey(g)) ?? []), g]);
+  for (const group of gradeGroups.values()) {
+    const d = await deliver(group[0].user_id, buildGradePayload(group));
+    await logAttempt({ userId: group[0].user_id, sendId: null, kind: "grade", title: `New grade: ${group[0].course_name || group[0].title}`, d });
+    if (d.outcome === "failed") await tryCall(rpc, "dispatch_grade_requeue", { p_grade_ids: group.map((g) => g.grade_id) });
+  }
+
   for (const endpoint of gone) await call(rpc, "dispatch_remove_subscription", { p_endpoint: endpoint });
 
   result.durationMs = Date.now() - started;
@@ -183,6 +208,15 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
     p_note: opts.label ?? null,
   });
   return result;
+}
+
+/** Like call(), but a missing function (database not updated yet) is just "nothing to do". */
+async function tryCall<T extends unknown[]>(rpc: Rpc, name: string, args: Record<string, unknown>): Promise<T> {
+  try {
+    return await call<T>(rpc, name, args);
+  } catch {
+    return [] as unknown as T;
+  }
 }
 
 type SeriesRow = { item_id: string; start_at: string; timezone: string; rrule: string; last_due: string | null };
