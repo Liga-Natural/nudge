@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientKey, rateLimit, tooMany } from "@/lib/rate-limit";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
@@ -8,6 +9,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limited = rateLimit(`push-sub:${clientKey(request.headers)}`, 30, 60_000);
+  if (!limited.ok) return tooMany(limited.retryAfterSeconds);
   const supabase = await createClient();
   const {
     data: { user },

@@ -181,3 +181,11 @@ Typecheck clean, lint 0 errors, all unit tests pass (including PGlite migrations
 ## Phase 0 report (done Oct 14, 2026)
 
 Live: https://nudge-ivory.vercel.app (Vercel Production tracks `phase-0-setup`). Built: app skeleton, email-code login (owner only), installable PWA, Web Push with a test button. SQL, in order: `supabase/migrations/0001_push_subscriptions.sql`, `0002_grant_push_subscriptions.sql`. Tested by Adrian on iPhone: install, login, test notification all worked. Not yet done: automated tests, RLS check file, Playwright/axe/Lighthouse, rate limiting, CSP nonce, Dependabot. See NIGHT_LOG.md.
+
+## Phase 1 report (overnight run, Oct 14, 2026)
+
+Branch `phase-1`: Today / Upcoming / Add (plain words, confirm before saving) / Item detail / Settings / MonAi-style onboarding, English + Español, Simple / Full; repeating items (DST-safe), several reminders per item, snooze / done / skip, quiet hours, morning summary; the reminder clock (pg_cron every minute → `/api/dispatch`, idempotent through a unique send record), a daily catch-up and a daily health-check email. SQL, in order: `0003_core_tables.sql`, `0004_reminder_clock.sql`, then the Vault + Vercel steps in NIGHT_LOG.md, then `0005_clock_schedule.sql`. Tests: PGlite runs every migration twice, `supabase/tests/rls_check.sql` returns 0 rows, timing tests (11:59 PM, DST days, no double sends, catch-up), parser and repeat-rule tests, Playwright (phone 375px + desktop) with axe. See NIGHT_LOG.md for decisions, what is unverified, and the 5-minute phone checklist.
+
+## Phase 2 report (overnight run, Oct 14, 2026)
+
+Branch `phase-2` (built on `phase-1`): Payments (due this week / month, exact totals, Paid button with amount and date, autopay = heads-up only), School (courses, assignments by course, exams, "start early" reminder), calendar feed subscriptions (encrypted address, https only and public addresses only, refreshed about every 30 minutes by the minute clock, dedupe by event id, your edits / Done / snoozes kept, vanished events archived), the Updates feed, and Settings → Features switches (all off by default). SQL: `0006_payments_school_feeds.sql`; new env var `ENCRYPTION_KEY`. See NIGHT_LOG.md.
