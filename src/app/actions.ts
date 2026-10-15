@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCtx } from "@/lib/context";
 import { dedupeReminders, dueInstant, itemInputSchema, toDueLocal, type ItemInput } from "@/lib/item-input";
-import { buildDues, tomorrowMorning } from "@/lib/occurrences";
+import { buildDues, tomorrowMorning, tonightAt } from "@/lib/occurrences";
 import { parseQuickAdd } from "@/lib/parser";
 import { defaultReminders, reminderToRow, type ReminderSpec } from "@/lib/reminders";
 import { instantToWall } from "@/lib/time";
@@ -216,13 +216,19 @@ export async function reopenOccurrence(occId: string): Promise<Result> {
   return { ok: true };
 }
 
-export async function snoozeOccurrence(occId: string, option: "10" | "60" | "180" | "tomorrow"): Promise<Result> {
+export async function snoozeOccurrence(occId: string, option: "10" | "60" | "180" | "tonight" | "tomorrow"): Promise<Result> {
   const ctx = await ready();
   if (!ctx) return fail("setup");
   const occ = await loadOccurrence(ctx, occId);
-  if (!occ || !["10", "60", "180", "tomorrow"].includes(option)) return fail();
+  if (!occ || !["10", "60", "180", "tonight", "tomorrow"].includes(option)) return fail();
   const now = new Date();
-  const until = option === "tomorrow" ? tomorrowMorning(now, ctx.profile.timezone) : new Date(now.getTime() + Number(option) * 60_000);
+  let until: Date;
+  if (option === "tomorrow") until = tomorrowMorning(now, ctx.profile.timezone);
+  else if (option === "tonight") {
+    const tonight = tonightAt(now, ctx.profile.timezone);
+    if (!tonight) return fail("snooze.tonightPassed");
+    until = tonight;
+  } else until = new Date(now.getTime() + Number(option) * 60_000);
   const { error } = await ctx.supabase
     .from("occurrences")
     .update({ snoozed_until: until.toISOString(), snooze_count: occ.snooze_count + 1 })

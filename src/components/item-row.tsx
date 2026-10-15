@@ -48,7 +48,7 @@ export function ItemRow({
     setSheet(false);
     start(async () => {
       const r = await snoozeOccurrence(entry.occId, option);
-      if (!r.ok) setError(t("common.error"));
+      if (!r.ok) setError(r.error === "setup" ? t("setup.title") : t(r.error));
     });
   }
 

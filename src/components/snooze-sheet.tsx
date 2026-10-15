@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useT } from "@/lib/i18n/client";
 
-export type SnoozeOption = "10" | "60" | "180" | "tomorrow";
+export type SnoozeOption = "10" | "60" | "180" | "tonight" | "tomorrow";
 
 export function SnoozeSheet({
   open,
@@ -29,7 +29,7 @@ export function SnoozeSheet({
   const options: [SnoozeOption, string][] = [
     ["10", t("snooze.10")],
     ["60", t("snooze.60")],
-    ["180", t("snooze.180")],
+    ["tonight", t("snooze.tonight")],
     ["tomorrow", t("snooze.tomorrow")],
   ];
   return (

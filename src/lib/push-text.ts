@@ -17,6 +17,8 @@ export type ReminderRow = {
   fire_at: string;
   timezone: string;
   language: Lang;
+  /** Filled in by the dispatcher so a tap on the notification can open this exact time. */
+  occurrence_id?: string;
 };
 
 export type SummaryRow = {
@@ -30,7 +32,8 @@ export type SummaryRow = {
   payments_cents: number;
 };
 
-export type PushPayload = { title: string; body: string; url: string; tag?: string };
+export type PushAction = { action: string; title: string };
+export type PushPayload = { title: string; body: string; url: string; tag?: string; occ?: string; actions?: PushAction[] };
 
 const EMOJI: Record<string, string> = { task: "✅", homework: "📚", payment: "💳", package: "📦", event: "📅", renewal: "🔁" };
 export const emojiFor = (type: string) => EMOJI[type] ?? "✅";
@@ -53,6 +56,9 @@ const T = {
     missed: "Missed while you were away",
     many: (n: number) => `${n} reminders`,
     summaryTitle: "Good morning ☀️",
+    actDone: "Done",
+    act10: "10 min",
+    act60: "1 hour",
     todayThings: (n: number) => `Today: ${n} thing${n === 1 ? "" : "s"}`,
     lateThings: (n: number) => `${n} late`,
     paymentsDue: (n: number, money: string) => `💳 ${money} due in 7 days${n > 1 ? ` (${n} bills)` : ""}`,
@@ -74,6 +80,9 @@ const T = {
     missed: "Perdido mientras no estabas",
     many: (n: number) => `${n} recordatorios`,
     summaryTitle: "Buenos días ☀️",
+    actDone: "Hecho",
+    act10: "10 min",
+    act60: "1 hora",
     todayThings: (n: number) => `Hoy: ${n} cosa${n === 1 ? "" : "s"}`,
     lateThings: (n: number) => `${n} atrasada${n === 1 ? "" : "s"}`,
     paymentsDue: (n: number, money: string) => `💳 ${money} por pagar en 7 días${n > 1 ? ` (${n} pagos)` : ""}`,
@@ -118,7 +127,23 @@ export function buildReminderPayload(rows: ReminderRow[], now: Date, opts: { aut
   });
   const prefix = missed ? `${t.missed}: ` : "";
   if (rows.length === 1) {
-    return { title: `${prefix}${lines[0].head}`.slice(0, 120), body: lines[0].when, url: "/", tag: first.item_id };
+    const occ = first.occurrence_id;
+    return {
+      title: `${prefix}${lines[0].head}`.slice(0, 120),
+      body: lines[0].when,
+      // iPhone shows no buttons on a notification, so a tap opens the item with Done / Snooze on top.
+      url: occ ? `/item/${first.item_id}?occ=${occ}&quick=1` : `/item/${first.item_id}`,
+      tag: first.item_id,
+      occ,
+      // Android and desktop show these buttons; iPhone ignores them.
+      actions: occ
+        ? [
+            { action: "done", title: t.actDone },
+            { action: "snooze10", title: t.act10 },
+            { action: "snooze60", title: t.act60 },
+          ]
+        : undefined,
+    };
   }
   return {
     title: missed ? `${t.missed} (${rows.length})` : t.many(rows.length),

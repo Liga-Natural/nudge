@@ -14,7 +14,7 @@ import {
 export type RpcResult = { data: unknown; error: { message: string } | null };
 export type Rpc = (name: string, args: Record<string, unknown>) => Promise<RpcResult>;
 export type Subscription = { user_id: string; endpoint: string; p256dh: string; auth: string };
-export type SendOutcome = { ok: boolean; gone?: boolean };
+export type SendOutcome = { ok: boolean; gone?: boolean; status?: number; error?: string };
 export type Sender = (sub: Subscription, payload: PushPayload) => Promise<SendOutcome>;
 
 export type DispatchOptions = {
@@ -35,6 +35,7 @@ export type DispatchResult = {
   sent: number;
   failed: number;
   held: number;
+  skipped: number;
   summaries: number;
   topped: number;
   durationMs: number;
@@ -50,7 +51,7 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
   const started = Date.now();
   const { rpc, send, now } = opts;
   const iso = now.toISOString();
-  const result: DispatchResult = { claimed: 0, sent: 0, failed: 0, held: 0, summaries: 0, topped: 0, durationMs: 0 };
+  const result: DispatchResult = { claimed: 0, sent: 0, failed: 0, held: 0, skipped: 0, summaries: 0, topped: 0, durationMs: 0 };
 
   if (opts.withTopUp !== false) result.topped = await topUpSeries(rpc, now);
 
@@ -63,6 +64,25 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
   const reclaimed = await call<ReminderRow[]>(rpc, "dispatch_reclaim", { p_now: iso });
   const rows = [...claimed, ...reclaimed];
   result.claimed = rows.length;
+  // Reminders held for quiet hours or switched off never count as "claimed"; say so out loud.
+  try {
+    const stats = await call<{ held: number; skipped: number }[]>(rpc, "dispatch_tick_stats", { p_now: iso });
+    result.held = stats[0]?.held ?? 0;
+    result.skipped = stats[0]?.skipped ?? 0;
+  } catch {
+    // An older database without file 0007.
+  }
+  // Which occurrence each reminder is for, so a tap on the notification can open it with Done / Snooze.
+  const occBySend = new Map<string, string>();
+  if (rows.length) {
+    try {
+      const ids = await call<{ send_id: string; occurrence_id: string }[]>(rpc, "dispatch_occurrence_ids", { p_send_ids: rows.map((r) => r.send_id) });
+      for (const i of ids) occBySend.set(i.send_id, i.occurrence_id);
+    } catch {
+      // Older database: notifications just open the item without the quick buttons.
+    }
+  }
+  for (const r of rows) r.occurrence_id = occBySend.get(r.send_id);
 
   const summaries = opts.withSummaries === false ? [] : await call<SummaryRow[]>(rpc, "dispatch_summaries", { p_now: iso });
 
@@ -86,21 +106,44 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
   }
 
   const gone = new Set<string>();
-  async function deliver(userId: string, payload: PushPayload): Promise<"sent" | "failed" | "none"> {
+  type Delivery = { outcome: "sent" | "failed" | "none"; error: string | null; httpStatus: number | null };
+  async function deliver(userId: string, payload: PushPayload): Promise<Delivery> {
     const mine = subsByUser.get(userId) ?? [];
-    if (!mine.length) return "none";
+    if (!mine.length) {
+      return { outcome: "none", error: "No phone is signed up for notifications. Open Settings and tap Turn on notifications.", httpStatus: null };
+    }
     const outcomes = await Promise.all(
       mine.map(async (s) => {
         try {
           const o = await send(s, payload);
           if (o.gone) gone.add(s.endpoint);
-          return o.ok;
-        } catch {
-          return false;
+          return o;
+        } catch (e) {
+          return { ok: false, error: e instanceof Error ? e.message : "Unknown error" } as SendOutcome;
         }
       }),
     );
-    return outcomes.some(Boolean) ? "sent" : "failed";
+    if (outcomes.some((o) => o.ok)) return { outcome: "sent", error: null, httpStatus: null };
+    const first = outcomes[0];
+    return { outcome: "failed", error: first?.error ?? "The notification could not be sent.", httpStatus: first?.status ?? null };
+  }
+
+  // The Delivery log in Settings. Writing to it must never stop a reminder from going out.
+  async function logAttempt(a: { userId: string; sendId: string | null; kind: string; title: string; d: Delivery }) {
+    try {
+      const status = a.d.outcome === "sent" ? "sent" : a.d.outcome === "none" ? "no_phone" : "failed";
+      await rpc("dispatch_log_attempt", {
+        p_user_id: a.userId,
+        p_send_id: a.sendId,
+        p_kind: a.kind,
+        p_title: a.title,
+        p_status: status,
+        p_error: a.d.error,
+        p_http_status: a.d.httpStatus,
+      });
+    } catch {
+      // An older database without file 0007: the reminder still goes out.
+    }
   }
 
   // One push per person per minute, however many reminders fell due together.
@@ -109,10 +152,11 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
 
   await Promise.all(
     [...byUser.entries()].map(async ([userId, userRows]) => {
-      const outcome = await deliver(userId, buildReminderPayload(userRows, now, { autopay }));
+      const d = await deliver(userId, buildReminderPayload(userRows, now, { autopay }));
       for (const r of userRows) {
-        const status = outcome === "sent" ? "sent" : outcome === "none" ? "skipped" : "failed";
+        const status = d.outcome === "sent" ? "sent" : d.outcome === "none" ? "skipped" : "failed";
         await call(rpc, "dispatch_finish", { p_send_id: r.send_id, p_status: status });
+        await logAttempt({ userId, sendId: r.send_id, kind: r.label === "missed" ? "catchup" : "reminder", title: r.title, d });
         if (status === "sent") result.sent++;
         else if (status === "failed") result.failed++;
       }
@@ -120,8 +164,9 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
   );
 
   for (const s of summaries) {
-    const outcome = await deliver(s.user_id, buildSummaryPayload(s));
-    if (outcome === "sent") result.summaries++;
+    const d = await deliver(s.user_id, buildSummaryPayload(s));
+    await logAttempt({ userId: s.user_id, sendId: null, kind: "summary", title: "Morning summary", d });
+    if (d.outcome === "sent") result.summaries++;
   }
 
   for (const endpoint of gone) await call(rpc, "dispatch_remove_subscription", { p_endpoint: endpoint });

@@ -8,12 +8,13 @@ import { rowToReminder } from "@/lib/reminders";
 import { loadSpaces, ITEM_COLUMNS, spaceLabel } from "@/lib/queries";
 import { formatDay, formatDayLong, formatMoney, formatTime, instantToWall } from "@/lib/time";
 import { TYPE_BG, TYPE_EMOJI, type Course, type EventRow, type ItemRow, type OccurrenceRow, type ReminderDbRow } from "@/lib/types";
+import { QuickActions } from "@/components/quick-actions";
 import { ItemActions } from "./item-actions";
 import { EditItem } from "./edit-item";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default async function ItemPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ItemPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ occ?: string; quick?: string }> }) {
   const ctx = await getReadyCtx();
   if (!ctx) return null;
   const { profile, supabase } = ctx;
@@ -21,6 +22,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   const lang = profile.language;
   const tz = profile.timezone;
   const { id } = await params;
+  const query = await searchParams;
 
   const notFound = (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 pt-10">
@@ -87,6 +89,10 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
       <Link href="/" className="btn-quiet w-fit">
         ← {t("action.back")}
       </Link>
+
+      {query.quick === "1" && current && current.status === "open" && UUID.test(query.occ ?? "") && query.occ === current.id && (
+        <QuickActions occId={current.id} />
+      )}
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="item-title">
         <div className="flex items-start gap-3">

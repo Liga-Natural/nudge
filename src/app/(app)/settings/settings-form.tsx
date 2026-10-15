@@ -94,6 +94,14 @@ export function SettingsForm({ profile, spaces, feeds }: { profile: Profile; spa
 
       <NotificationsPanel />
 
+      <Link href="/settings/delivery" className="card flex min-h-[56px] items-center justify-between gap-3 p-5">
+        <span>
+          <span className="block text-lg font-bold">{t("delivery.link")}</span>
+          <span className="block text-sm text-muted">{t("delivery.link.body")}</span>
+        </span>
+        <span aria-hidden>→</span>
+      </Link>
+
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-style">
         <h2 id="s-style" className="text-lg font-bold">
           {t("settings.style")}
