@@ -24,6 +24,9 @@
   --color-task: #f1e7ff;
   --color-event: #ffe6ec;
   --color-renewal: #dff3f3;
+  --color-work: #e3e8ff;
+  --color-habit: #e6f4d9;
+  --color-birthday: #ffe3f1;
   --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 6px 20px rgb(28 25 23 / 0.06);
 }
 
@@ -159,5 +162,26 @@ button:focus-visible {
   .tile,
   .btn-primary {
     transition: none;
+  }
+}
+
+/* Loading placeholders: the shape of the screen shows at once while the data arrives. */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.skeleton {
+  border-radius: 16px;
+  background: var(--color-line);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
   }
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { createSpace, deleteAccount, deleteSpace, updateProfile, updateSpace, type ProfilePatch } from "@/app/actions";
 import { signOut } from "@/app/login/actions";
 import { NotificationsPanel } from "@/components/notifications-panel";
@@ -10,12 +10,14 @@ import { FEATURE_KEYS } from "@/lib/features";
 import { FeedsSection } from "./feeds-section";
 import { useT } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
-import type { FeedRow, Profile, Space } from "@/lib/types";
+import { BillsSection, ClassroomSection, HabitPrefs, HomeworkTiming, TokensSection } from "./p3-sections";
+import type { Course, FeedRow, Profile, Space, TokenRow } from "@/lib/types";
 
 const STYLES = ["morning", "on_time", "before", "important"] as const;
 const TYPES = ["task", "homework", "payment", "event", "renewal"] as const;
 
 const hhmm = (v: string) => v.slice(0, 5);
+const noSubscribe = () => () => {};
 
 function Toggle({ label, body, on, onChange }: { label: string; body?: string; on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -29,7 +31,25 @@ function Toggle({ label, body, on, onChange }: { label: string; body?: string; o
   );
 }
 
-export function SettingsForm({ profile, spaces, feeds }: { profile: Profile; spaces: Space[]; feeds: FeedRow[] }) {
+export function SettingsForm({
+  profile,
+  spaces,
+  feeds,
+  classroomFeeds,
+  billsFeeds,
+  courses,
+  tokens,
+  endpoint,
+}: {
+  profile: Profile;
+  spaces: Space[];
+  feeds: FeedRow[];
+  classroomFeeds: FeedRow[];
+  billsFeeds: FeedRow[];
+  courses: Course[];
+  tokens: TokenRow[];
+  endpoint: string;
+}) {
   const t = useT();
   const router = useRouter();
   const [p, setP] = useState(profile);
@@ -39,6 +59,12 @@ export function SettingsForm({ profile, spaces, feeds }: { profile: Profile; spa
   const [confirmWord, setConfirmWord] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [error, setError] = useState("");
+  // "" while the page is drawn on the server and during hydration, then this phone's own zone.
+  const deviceTz = useSyncExternalStore(
+    noSubscribe,
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    () => "",
+  );
 
   function save(patch: ProfilePatch, refresh = false) {
     setP((cur) => ({ ...cur, ...patch }) as Profile);
@@ -94,6 +120,14 @@ export function SettingsForm({ profile, spaces, feeds }: { profile: Profile; spa
 
       <NotificationsPanel />
 
+      <Link href="/settings/delivery" className="card flex min-h-[56px] items-center justify-between gap-3 p-5">
+        <span>
+          <span className="block text-lg font-bold">{t("delivery.link")}</span>
+          <span className="block text-sm text-muted">{t("delivery.link.body")}</span>
+        </span>
+        <span aria-hidden>→</span>
+      </Link>
+
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-style">
         <h2 id="s-style" className="text-lg font-bold">
           {t("settings.style")}
@@ -105,6 +139,7 @@ export function SettingsForm({ profile, spaces, feeds }: { profile: Profile; spa
             </button>
           ))}
         </div>
+        <p className="text-sm text-muted">{t("settings.style.hint")}</p>
       </section>
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-morning">
@@ -229,15 +264,23 @@ export function SettingsForm({ profile, spaces, feeds }: { profile: Profile; spa
       </section>
 
       {p.features?.feeds === true && <FeedsSection feeds={feeds} />}
+      {p.features?.school === true && <HomeworkTiming prefs={p.prefs ?? {}} />}
+      {p.features?.school === true && <ClassroomSection feeds={classroomFeeds} courses={courses} />}
+      {p.features?.habits === true && <HabitPrefs prefs={p.prefs ?? {}} />}
+      {p.features?.inbox === true && <TokensSection tokens={tokens} endpoint={endpoint} />}
+      {p.features?.bills === true && <BillsSection feeds={billsFeeds} />}
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-tz">
         <h2 id="s-tz" className="text-lg font-bold">
           {t("settings.timezone")}
         </h2>
         <p className="text-sm">{p.timezone}</p>
-        <button className="btn-quiet w-full" onClick={() => save({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }, true)}>
-          {Intl.DateTimeFormat().resolvedOptions().timeZone}
-        </button>
+        {/* The phone's own zone is only known in the browser, so it appears after the page loads (no server/phone mismatch). */}
+        {deviceTz && deviceTz !== p.timezone && (
+          <button className="btn-quiet w-full" onClick={() => save({ timezone: deviceTz }, true)}>
+            {t("settings.timezone.use", { zone: deviceTz })}
+          </button>
+        )}
       </section>
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-data">

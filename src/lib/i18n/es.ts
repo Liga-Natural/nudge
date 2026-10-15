@@ -1,6 +1,8 @@
 import type { Key } from "./en";
+import { esP3 } from "./es-p3";
 
 export const es: Record<Key, string> = {
+  ...esP3,
   // shared
   "nav.today": "Hoy",
   "nav.upcoming": "Próximos",
@@ -192,7 +194,7 @@ export const es: Record<Key, string> = {
   "settings.deleteAccount.unavailable": "Para eliminar hace falta la llave del servidor, que aún no está configurada.",
   "settings.timezone": "Zona horaria",
   "settings.saved": "Guardado",
-  "settings.testPush": "Enviarme una notificación de prueba",
+  "settings.testPush": "Enviar notificación de prueba ahora",
 
   // nudge styles
   "style.morning": "Resumen de la mañana",
@@ -209,7 +211,7 @@ export const es: Record<Key, string> = {
   "notif.off": "Nudge solo te avisa de lo que le pediste recordar.",
   "notif.turnOn": "Activar notificaciones",
   "notif.on": "Las notificaciones están activadas.",
-  "notif.test": "Enviarme una notificación de prueba",
+  "notif.test": "Enviar notificación de prueba ahora",
   "notif.sent": "¡Enviada! Debería aparecer en unos segundos.",
   "notif.offline": "No pudimos conectar con el servidor. Revisa tu conexión.",
 

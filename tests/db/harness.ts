@@ -117,3 +117,8 @@ export async function asServer<T>(db: PGlite, fn: () => Promise<T>): Promise<T> 
 }
 
 export const rlsCheckSql = () => readFileSync(join(root, "supabase", "tests", "rls_check.sql"), "utf8");
+
+/** Supabase's service role can use every table and skips row level security; PGlite's stand-in needs telling. */
+export async function serverLikeSupabase(db: PGlite) {
+  await db.exec("grant all on all tables in schema public to service_role; alter role service_role bypassrls;");
+}

@@ -82,9 +82,9 @@ export const config = {
   matcher: [
     {
       // Skip static files, the service worker, manifest, icons, and the clock routes
-      // (the clock routes prove who they are with a secret instead of a login).
+      // (the clock routes and /api/inbox prove who they are with a secret or token instead of a login).
       source:
-        "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|icons/|api/dispatch|api/cron/|.*\\.(?:svg|png|jpg|ico)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|icons/|api/dispatch|api/cron/|api/inbox|.*\\.(?:svg|png|jpg|ico)$).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

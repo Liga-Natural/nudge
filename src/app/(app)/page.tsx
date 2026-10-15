@@ -10,6 +10,19 @@ import { loadAgenda, spaceLabel } from "@/lib/queries";
 import { addLocalDays, endOfLocalDay, formatDayLong, formatTime, instantToWall } from "@/lib/time";
 import type { AgendaEntry } from "@/lib/types";
 
+// The shortcut row under the greeting: only the features that are switched on.
+const MORE = [
+  ["payments", "/payments", "💳", "feature.payments"],
+  ["school", "/school", "🎓", "feature.school"],
+  ["grades", "/grades", "📝", "feature.grades"],
+  ["habits", "/habits", "🌱", "feature.habits"],
+  ["work", "/lists/work", "💼", "feature.work"],
+  ["birthdays", "/lists/birthdays", "🎂", "feature.birthdays"],
+  ["renewals", "/lists/renewals", "🪪", "feature.renewals"],
+  ["inbox", "/import", "📥", "feature.inbox"],
+  ["updates", "/updates", "🗞️", "feature.updates"],
+] as const;
+
 export default async function TodayPage({ searchParams }: { searchParams: Promise<{ space?: string }> }) {
   const ctx = await getReadyCtx();
   if (!ctx) return null;
@@ -43,6 +56,8 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   ]
     .filter(Boolean)
     .join(" · ");
+
+  const moreLinks = MORE.filter(([k]) => featureOn(profile, k));
 
   const rows = (list: AgendaEntry[], late = false) => (
     <ul className="flex flex-col gap-2">
@@ -84,15 +99,13 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
         )}
       </header>
 
-      {([["payments", "/payments", "💳", "feature.payments"], ["school", "/school", "🎓", "feature.school"], ["updates", "/updates", "🗞️", "feature.updates"]] as const).some(([k]) => featureOn(profile, k)) && (
+      {moreLinks.length > 0 && (
         <nav aria-label={t("more.title")} className="-mx-4 flex gap-2 overflow-x-auto px-4">
-          {([["payments", "/payments", "💳", "feature.payments"], ["school", "/school", "🎓", "feature.school"], ["updates", "/updates", "🗞️", "feature.updates"]] as const)
-            .filter(([k]) => featureOn(profile, k))
-            .map(([k, href, emoji, label]) => (
-              <Link key={k} href={href} className="btn-quiet flex-none">
-                <span aria-hidden>{emoji}</span> {t(label)}
-              </Link>
-            ))}
+          {moreLinks.map(([k, href, emoji, label]) => (
+            <Link key={k} href={href} className="btn-quiet flex-none">
+              <span aria-hidden>{emoji}</span> {t(label)}
+            </Link>
+          ))}
         </nav>
       )}
 

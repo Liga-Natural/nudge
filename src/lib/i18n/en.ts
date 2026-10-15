@@ -1,5 +1,8 @@
+import { enP3 } from "./en-p3";
+
 // All the words in the app. Spanish lives in es.ts and must have exactly the same keys.
 export const en = {
+  ...enP3,
   // shared
   "nav.today": "Today",
   "nav.upcoming": "Upcoming",
@@ -191,7 +194,7 @@ export const en = {
   "settings.deleteAccount.unavailable": "Deleting needs the server key, which isn't set up yet.",
   "settings.timezone": "Time zone",
   "settings.saved": "Saved",
-  "settings.testPush": "Send me a test notification",
+  "settings.testPush": "Send test notification now",
 
   // nudge styles
   "style.morning": "Morning summary",
@@ -208,7 +211,7 @@ export const en = {
   "notif.off": "Nudge only pings you about things you asked it to remember.",
   "notif.turnOn": "Turn on notifications",
   "notif.on": "Notifications are on.",
-  "notif.test": "Send me a test notification",
+  "notif.test": "Send test notification now",
   "notif.sent": "Sent! It should appear in a few seconds.",
   "notif.offline": "We couldn't reach the server. Check your connection.",
 

@@ -109,8 +109,9 @@ export function NotificationsPanel({ showTest = true, bare = false, onEnabled }:
           </button>
         </>
       )}
-      {status === "on" && showTest && (
-        <button className="btn-primary" onClick={sendTest} disabled={busy}>
+      {/* Always offered (once the check is done): even before this phone is signed up, the answer says exactly what is missing. */}
+      {showTest && status !== "checking" && (
+        <button className={status === "on" ? "btn-primary" : "btn-quiet"} onClick={sendTest} disabled={busy}>
           {t("notif.test")}
         </button>
       )}

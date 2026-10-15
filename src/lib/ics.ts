@@ -1,5 +1,5 @@
 import { parseRule, ruleToString } from "./recurrence";
-import { defaultReminders, reminderToRow } from "./reminders";
+import { defaultReminders, reminderToRow, type ReminderSpec } from "./reminders";
 import { instantToWall, wallToInstant } from "./time";
 import type { ItemType } from "./parser";
 
@@ -94,7 +94,7 @@ function amountFrom(...texts: (string | null)[]): number | null {
 
 export function parseIcs(
   text: string,
-  opts: { userTz: string; defaultType: ItemType; now: Date; backDays?: number; maxForwardDays?: number },
+  opts: { userTz: string; defaultType: ItemType; now: Date; backDays?: number; maxForwardDays?: number; reminders?: ReminderSpec[] },
 ): FeedEvent[] {
   const lines = unfold(text);
   const events: FeedEvent[] = [];
@@ -136,7 +136,7 @@ export function parseIcs(
               cancelled,
               amount_cents: amount,
               type,
-              reminders: defaultReminders(type, when.allDay).map(reminderToRow),
+              reminders: (opts.reminders ?? defaultReminders(type, when.allDay)).map(reminderToRow),
             });
           }
         }

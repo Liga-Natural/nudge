@@ -27,3 +27,10 @@ export function tomorrowMorning(now: Date, tz: string): Date {
   const w = instantToWall(addLocalDays(now, tz, 1), tz);
   return wallToInstant({ ...w, h: 9, mi: 0 }, tz);
 }
+
+/** "Tonight": 8:00 PM today in the person's zone, or null once it is too late for that to make sense (after 7 PM). */
+export function tonightAt(now: Date, tz: string): Date | null {
+  const w = instantToWall(now, tz);
+  if (w.h >= 19) return null;
+  return wallToInstant({ ...w, h: 20, mi: 0 }, tz);
+}

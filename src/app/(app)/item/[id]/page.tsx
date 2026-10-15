@@ -7,13 +7,16 @@ import { describeRule, parseRule } from "@/lib/recurrence";
 import { rowToReminder } from "@/lib/reminders";
 import { loadSpaces, ITEM_COLUMNS, spaceLabel } from "@/lib/queries";
 import { formatDay, formatDayLong, formatMoney, formatTime, instantToWall } from "@/lib/time";
-import { TYPE_BG, TYPE_EMOJI, type Course, type EventRow, type ItemRow, type OccurrenceRow, type ReminderDbRow } from "@/lib/types";
+import { computeStreak } from "@/lib/streak";
+import { ChecklistView } from "@/components/checklist-view";
+import { TYPE_BG, TYPE_EMOJI, enabledItemTypes, type ChecklistRow, type Course, type EventRow, type ItemRow, type OccurrenceRow, type ReminderDbRow } from "@/lib/types";
+import { QuickActions } from "@/components/quick-actions";
 import { ItemActions } from "./item-actions";
 import { EditItem } from "./edit-item";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default async function ItemPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ItemPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ occ?: string; quick?: string }> }) {
   const ctx = await getReadyCtx();
   if (!ctx) return null;
   const { profile, supabase } = ctx;
@@ -21,6 +24,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   const lang = profile.language;
   const tz = profile.timezone;
   const { id } = await params;
+  const query = await searchParams;
 
   const notFound = (
     <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 pt-10">
@@ -36,13 +40,15 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
   const item = itemData as ItemRow | null;
   if (!item) return notFound;
 
-  const [remRes, occRes, evRes, spaces, courseRes] = await Promise.all([
+  const [remRes, occRes, evRes, spaces, courseRes, checkRes] = await Promise.all([
     supabase.from("reminders").select("id,item_id,offset_minutes,days_before,at_time").eq("item_id", id),
     supabase.from("occurrences").select("id,item_id,due_at,status,snoozed_until,snooze_count,done_at").eq("item_id", id).order("due_at", { ascending: false }).limit(40),
     supabase.from("item_events").select("id,item_id,kind,detail,created_at").eq("item_id", id).order("created_at", { ascending: false }).limit(30),
     loadSpaces(supabase),
     supabase.from("courses").select("id,name,color").order("created_at"),
+    supabase.from("item_checklist").select("id,item_id,text,done,sort_order").eq("item_id", id).order("sort_order"),
   ]);
+  const checklist = (checkRes.data ?? []) as ChecklistRow[];
   const courses = (courseRes.data ?? []) as Course[];
   const reminders = ((remRes.data ?? []) as ReminderDbRow[]).map(rowToReminder);
   const occs = (occRes.data ?? []) as OccurrenceRow[];
@@ -76,8 +82,12 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
     autopay: !!item.autopay,
     courseId: item.course_id,
     notes: item.notes,
+    location: item.location ?? null,
+    subtype: (item.subtype as "game_day" | "registration" | "sponsor" | "posting" | null) ?? null,
+    checklist: checklist.map((c) => ({ text: c.text, done: c.done })),
     reminders,
   };
+  const streak = item.type === "habit" ? computeStreak(occs.map((o) => ({ dueAt: o.due_at, status: o.status })), new Date(), tz) : null;
 
   const status = current?.status ?? item.status;
   const snoozed = current?.snoozed_until && new Date(current.snoozed_until) > new Date();
@@ -87,6 +97,10 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
       <Link href="/" className="btn-quiet w-fit">
         ← {t("action.back")}
       </Link>
+
+      {query.quick === "1" && current && current.status === "open" && UUID.test(query.occ ?? "") && query.occ === current.id && (
+        <QuickActions occId={current.id} />
+      )}
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="item-title">
         <div className="flex items-start gap-3">
@@ -121,6 +135,26 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
               <dd>{formatMoney(item.amount_cents, item.currency, lang)}</dd>
             </>
           )}
+          {item.location && (
+            <>
+              <dt className="font-semibold text-muted">{t("item.location")}</dt>
+              <dd>{item.location}</dd>
+            </>
+          )}
+          {item.type === "work" && item.subtype && (
+            <>
+              <dt className="font-semibold text-muted">{t("item.kind")}</dt>
+              <dd>{t(`work.${item.subtype}` as Key)}</dd>
+            </>
+          )}
+          {streak && (
+            <>
+              <dt className="font-semibold text-muted">{t("habits.streakLabel")}</dt>
+              <dd>
+                {t("habits.streak", { n: streak.current })} · {t("habits.best", { n: streak.best })}
+              </dd>
+            </>
+          )}
           {space && (
             <>
               <dt className="font-semibold text-muted">{t("item.space")}</dt>
@@ -144,7 +178,9 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
         )}
       </section>
 
-      <ItemActions occId={current?.id ?? null} status={status} recurring={!!item.rrule} itemId={item.id} />
+      <ItemActions occId={current?.id ?? null} status={status} recurring={!!item.rrule} itemId={item.id} habit={item.type === "habit"} />
+
+      {checklist.length > 0 && <ChecklistView rows={checklist} />}
 
       <section className="card flex flex-col gap-2 p-5" aria-labelledby="rem-h">
         <h2 id="rem-h" className="text-lg font-bold">
@@ -163,7 +199,7 @@ export default async function ItemPage({ params }: { params: Promise<{ id: strin
         )}
       </section>
 
-      <EditItem initial={initial} spaces={spaces} courses={courses} showSpaces={profile.mode === "full"} itemId={item.id} />
+      <EditItem initial={initial} spaces={spaces} courses={courses} showSpaces={profile.mode === "full"} itemId={item.id} enabledTypes={enabledItemTypes(profile.features)} />
 
       <section className="card flex flex-col gap-2 p-5" aria-labelledby="hist-h">
         <h2 id="hist-h" className="text-lg font-bold">

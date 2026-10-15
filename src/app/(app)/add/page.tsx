@@ -2,7 +2,7 @@ import { AccentTitle } from "@/components/accent-title";
 import { getReadyCtx } from "@/lib/context";
 import { makeT } from "@/lib/i18n";
 import { loadSpaces } from "@/lib/queries";
-import type { Course } from "@/lib/types";
+import { enabledItemTypes, type Course } from "@/lib/types";
 import { AddFlow } from "./add-flow";
 
 export default async function AddPage() {
@@ -18,7 +18,7 @@ export default async function AddPage() {
         <AccentTitle pre={t("add.title.pre")} accent={t("add.title.accent")} post={t("add.title.post")} />
         <p className="text-muted">{t("add.subtitle")}</p>
       </header>
-      <AddFlow spaces={spaces} courses={courses} defaultSpaceId={defaultSpace?.id ?? null} showSpaces={ctx.profile.mode === "full"} />
+      <AddFlow spaces={spaces} courses={courses} defaultSpaceId={defaultSpace?.id ?? null} showSpaces={ctx.profile.mode === "full"} enabledTypes={enabledItemTypes(ctx.profile.features)} />
     </main>
   );
 }

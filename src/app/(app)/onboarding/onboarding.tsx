@@ -11,12 +11,19 @@ import { makeT, type Key, type Lang } from "@/lib/i18n";
 type Step = "welcome" | "track" | "nudge" | "times" | "notif" | "mode" | "ring" | "done";
 const FLOW: Step[] = ["track", "nudge", "times", "notif", "mode"];
 
-const TRACK: { id: "homework" | "payments" | "packages" | "tasks"; emoji: string; label: Key }[] = [
+type TrackId = "homework" | "payments" | "packages" | "tasks" | "work" | "habits" | "birthdays" | "renewals";
+const TRACK: { id: TrackId; emoji: string; label: Key }[] = [
   { id: "homework", emoji: "📚", label: "onb.track.homework" },
   { id: "payments", emoji: "💳", label: "onb.track.payments" },
   { id: "packages", emoji: "📦", label: "onb.track.packages" },
   { id: "tasks", emoji: "✅", label: "onb.track.tasks" },
+  { id: "work", emoji: "💼", label: "onb.track.work" },
+  { id: "habits", emoji: "🌱", label: "onb.track.habits" },
+  { id: "birthdays", emoji: "🎂", label: "onb.track.birthdays" },
+  { id: "renewals", emoji: "🪪", label: "onb.track.renewals" },
 ];
+// Picking one of these in the first step switches that kind of reminder on (it is off until then).
+const TRACK_FEATURES: TrackId[] = ["work", "habits", "birthdays", "renewals"];
 const NUDGE: { id: "morning" | "on_time" | "before" | "important"; emoji: string; label: Key }[] = [
   { id: "morning", emoji: "🌅", label: "onb.nudge.morning" },
   { id: "on_time", emoji: "⏰", label: "onb.nudge.on_time" },
@@ -46,7 +53,8 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
     setError("");
     const r = await updateProfile({
       language: lang,
-      track_types: track as ("homework" | "payments" | "packages" | "tasks")[],
+      track_types: track as TrackId[],
+      features: Object.fromEntries(TRACK_FEATURES.filter((f) => track.includes(f)).map((f) => [f, true])),
       nudge_style: style,
       morning_enabled: true,
       morning_time: morning,

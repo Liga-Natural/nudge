@@ -22,15 +22,19 @@ export async function GET(request: Request) {
   if (!claims?.claims?.sub) return NextResponse.json({ error: "Please sign in first." }, { status: 401 });
 
   const format = new URL(request.url).searchParams.get("format") === "csv" ? "csv" : "json";
-  const [profile, spaces, items, reminders, occurrences, events] = await Promise.all([
+  const [profile, spaces, items, reminders, occurrences, events, checklist, courses, assignments, grades] = await Promise.all([
     supabase.from("profiles").select("*"),
     supabase.from("spaces").select("*"),
     supabase.from("items").select("*").order("created_at"),
     supabase.from("reminders").select("*"),
     supabase.from("occurrences").select("*").order("due_at"),
     supabase.from("item_events").select("*").order("created_at"),
+    supabase.from("item_checklist").select("*").order("sort_order"),
+    supabase.from("courses").select("*"),
+    supabase.from("assignments").select("*"),
+    supabase.from("grades").select("*").order("posted_at"),
   ]);
-  const failed = [profile, spaces, items, reminders, occurrences, events].find((r) => r.error);
+  const failed = [profile, spaces, items, reminders, occurrences, events, checklist, courses, assignments, grades].find((r) => r.error);
   if (failed) return NextResponse.json({ error: "We couldn't read your data. Try again." }, { status: 500 });
 
   const stamp = new Date().toISOString().slice(0, 10);
@@ -50,6 +54,10 @@ export async function GET(request: Request) {
     reminders: reminders.data,
     occurrences: occurrences.data,
     history: events.data,
+    checklists: checklist.data,
+    classes: courses.data,
+    assignments: assignments.data,
+    grades: grades.data,
   };
   return new Response(JSON.stringify(json, null, 2), {
     headers: { "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `attachment; filename="nudge-export-${stamp}.json"` },

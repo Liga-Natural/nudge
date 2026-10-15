@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if (process.env.ENCRYPTION_KEY) {
       after(async () => {
         try {
-          await syncDueFeeds({ rpc, now: new Date(), decrypt, fetchText: (url, etag) => safeFetchText(url, { etag }) });
+          await syncDueFeeds({ rpc, now: new Date(), decrypt, fetchText: (url, etag, expect) => safeFetchText(url, { etag, expect }) });
         } catch (e) {
           console.error("feed sync failed:", e instanceof Error ? e.message : e);
         }

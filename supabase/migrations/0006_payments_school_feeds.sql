@@ -111,6 +111,8 @@ $fn$;
 -- ---------------------------------------------------------------- clock: calendar feed refresh
 -- Hands out the feeds that are due (not refreshed in the last 30 minutes), at most a couple per
 -- minute, and marks them as attempted right away so two clocks never fetch the same feed.
+-- (dropped first so later files may change what it returns)
+drop function if exists public.dispatch_feeds_due(timestamptz, integer);
 create or replace function public.dispatch_feeds_due(p_now timestamptz, p_limit integer default 2)
 returns table (
   feed_id uuid, user_id uuid, url_encrypted text, etag text, default_type text,

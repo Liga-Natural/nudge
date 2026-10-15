@@ -23,7 +23,11 @@ if (e2e && process.env.VERCEL) {
 const nextConfig: NextConfig = {
   distDir: e2e ? ".next-e2e" : ".next",
   // Baked in at build time, so a normal build contains none of the test-mode code.
-  env: { NUDGE_E2E: e2e ? "1" : "" },
+  env: {
+    NUDGE_E2E: e2e ? "1" : "",
+    // Changes on every deploy; the page and the service worker compare it to spot a newer version.
+    NUDGE_BUILD: (process.env.VERCEL_GIT_COMMIT_SHA ?? String(Date.now())).slice(0, 12),
+  },
   turbopack: {
     rules: {
       "*.css": {

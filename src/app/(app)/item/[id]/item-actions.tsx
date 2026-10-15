@@ -5,17 +5,20 @@ import { useState, useTransition } from "react";
 import { deleteItem, markDone, markSkipped, reopenOccurrence, snoozeOccurrence } from "@/app/actions";
 import { SnoozeSheet, type SnoozeOption } from "@/components/snooze-sheet";
 import { useT } from "@/lib/i18n/client";
+import type { Key } from "@/lib/i18n";
 
 export function ItemActions({
   occId,
   status,
   recurring,
   itemId,
+  habit = false,
 }: {
   occId: string | null;
   status: string;
   recurring: boolean;
   itemId: string;
+  habit?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -24,11 +27,11 @@ export function ItemActions({
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
 
-  const run = (fn: () => Promise<{ ok: boolean }>, after?: () => void) =>
+  const run = (fn: () => Promise<{ ok: boolean; error?: Key | "setup" }>, after?: () => void) =>
     start(async () => {
       setError("");
       const r = await fn();
-      if (!r.ok) return setError(t("common.error"));
+      if (!r.ok) return setError(r.error && r.error !== "setup" ? t(r.error) : t("common.error"));
       if (after) after();
       else router.refresh();
     });
@@ -46,7 +49,7 @@ export function ItemActions({
               ⏰ {t("action.snooze")}
             </button>
             <button className="btn-quiet" disabled={pending} onClick={() => run(() => markSkipped(occId))}>
-              {t("action.skip")}
+              {habit ? t("habits.skipToday") : t("action.skip")}
             </button>
           </div>
         </>
