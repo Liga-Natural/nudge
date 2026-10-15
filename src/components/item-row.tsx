@@ -29,6 +29,7 @@ export function ItemRow({
   const [sheet, setSheet] = useState(false);
   const [dx, setDx] = useState(0);
   const [error, setError] = useState("");
+  const [justSnoozed, setJustSnoozed] = useState(false);
   const [, start] = useTransition();
   const startX = useRef<number | null>(null);
   const dragged = useRef(false);
@@ -46,9 +47,14 @@ export function ItemRow({
 
   function snooze(option: SnoozeOption) {
     setSheet(false);
+    // Show it snoozed straight away; put it back with a message if the server says no.
+    setJustSnoozed(true);
     start(async () => {
       const r = await snoozeOccurrence(entry.occId, option);
-      if (!r.ok) setError(r.error === "setup" ? t("setup.title") : t(r.error));
+      if (!r.ok) {
+        setJustSnoozed(false);
+        setError(r.error === "setup" ? t("setup.title") : t(r.error));
+      }
     });
   }
 
@@ -108,7 +114,7 @@ export function ItemRow({
               <span className={late ? "font-semibold text-late-ink" : ""}>{timeLabel}</span>
               {money && <span className="rounded-full bg-pay px-2 py-0.5 text-xs font-semibold text-ink">{money}</span>}
               {spaceName && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-ink">{spaceName}</span>}
-              {snoozedLabel && <span className="text-xs">{snoozedLabel}</span>}
+              {snoozedLabel ? <span className="text-xs">{snoozedLabel}</span> : justSnoozed && <span className="text-xs">⏰ {t("action.snooze")}</span>}
             </span>
           </span>
         </Link>

@@ -164,3 +164,24 @@ button:focus-visible {
     transition: none;
   }
 }
+
+/* Loading placeholders: the shape of the screen shows at once while the data arrives. */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.skeleton {
+  border-radius: 16px;
+  background: var(--color-line);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

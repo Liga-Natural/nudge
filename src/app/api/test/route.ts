@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     onboarded?: boolean;
     language?: "en" | "es";
     features?: Record<string, boolean>;
-    items?: { title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number; autopay?: boolean; rrule?: string; location?: string; subtype?: string; courseId?: string; occurrences?: { dueAt: string; status?: string }[] }[];
+    items?: { id?: string; occId?: string; title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number; autopay?: boolean; rrule?: string; location?: string; subtype?: string; courseId?: string; occurrences?: { dueAt: string; status?: string }[] }[];
     /** Extra rows for other tables, e.g. { courses: [...], grades: [...] }. */
     extra?: Record<string, Record<string, unknown>[]>;
   };
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     });
     s.tables.spaces.push({ id: spaceId, user_id: s.userId, name: "Personal", emoji: "🏠", is_default: true, notifications_enabled: true, sort_order: 0 });
     for (const it of body.items ?? []) {
-      const id = crypto.randomUUID();
+      const id = it.id ?? crypto.randomUUID();
       s.tables.items.push({
         id, user_id: s.userId, space_id: spaceId, type: it.type ?? "task", title: it.title, notes: null, due_at: it.dueAt,
         all_day: it.allDay ?? false, timezone: "America/New_York", status: "open", priority: 0, amount_cents: it.amountCents ?? null,
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         location: it.location ?? null, subtype: it.subtype ?? null,
       });
       for (const o of it.occurrences ?? [{ dueAt: it.dueAt }]) {
-        s.tables.occurrences.push({ id: crypto.randomUUID(), user_id: s.userId, item_id: id, due_at: o.dueAt, status: o.status ?? "open", snoozed_until: null, snooze_count: 0, done_at: null });
+        s.tables.occurrences.push({ id: it.occId ?? crypto.randomUUID(), user_id: s.userId, item_id: id, due_at: o.dueAt, status: o.status ?? "open", snoozed_until: null, snooze_count: 0, done_at: null });
       }
     }
     for (const [table, rows] of Object.entries(body.extra ?? {})) {

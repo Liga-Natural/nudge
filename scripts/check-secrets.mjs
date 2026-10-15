@@ -2,6 +2,7 @@
 // or if the pretend-data test mode got into a real build.
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { dangerousJwtRoles, publicKeyProblem } from "./secrets-rules.mjs";
 
 const secretNames = [
   "VAPID_PRIVATE_KEY",
@@ -43,8 +44,8 @@ for (const name of Object.keys(env)) {
   }
 }
 const pub = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-if (pub && !/^sb_publishable_/.test(pub) && !/^eyJ/.test(pub)) fail("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY does not look like a publishable key.");
-if (pub && /^sb_secret_/.test(pub)) fail("A secret key was put in the public Supabase key.");
+const pubProblem = publicKeyProblem(pub);
+if (pubProblem) fail(pubProblem);
 
 // 2. Scan the files sent to the browser.
 const dir = existsSync(".next/static") ? ".next/static" : null;
@@ -59,6 +60,7 @@ if (!dir) {
     for (const v of secretValues) if (text.includes(v)) fail(`A secret value is inside ${file}`);
     if (/sb_secret_[A-Za-z0-9_-]{10,}/.test(text)) fail(`A Supabase secret key is inside ${file}`);
     if (/service_role/.test(text)) fail(`"service_role" appears in ${file}`);
+    for (const role of dangerousJwtRoles(text)) fail(`A Supabase key with role "${role}" is inside ${file}`);
   }
 }
 
