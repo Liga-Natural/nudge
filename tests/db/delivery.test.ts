@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { runDispatch } from "@/lib/dispatch";
 import { wallToInstant } from "@/lib/time";

@@ -20,7 +20,7 @@ export function AppFreshness() {
   const router = useRouter();
   const [stale, setStale] = useState(false);
   const lastCheck = useRef(0);
-  const lastRefresh = useRef(Date.now());
+  const lastRefresh = useRef(0);
 
   useEffect(() => {
     let reg: ServiceWorkerRegistration | undefined;

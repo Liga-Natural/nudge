@@ -7,6 +7,9 @@
 -- that stop one are the switches you can see in Settings, and every such case is written down with
 -- its reason in the Delivery log.
 
+-- ---------------------------------------------------------------- more settings (homework timing, habit summary, ...)
+alter table public.profiles add column if not exists prefs jsonb not null default '{}'::jsonb;
+
 -- ---------------------------------------------------------------- why a reminder was held or skipped
 alter table public.reminder_sends add column if not exists detail text;
 
@@ -92,6 +95,7 @@ begin
              when (pr.type_switches ->> d.item_type) = 'false' then 'skipped'
              when exists (select 1 from public.spaces s
                           where s.id = d.space_id and not s.notifications_enabled) then 'skipped'
+             when d.item_type = 'habit' and (pr.prefs ->> 'habit_summary') = 'true' then 'skipped'
              when not (pr.urgent_override and (d.due_at - p_now) <= interval '1 hour')
                   and public.nudge_in_quiet((p_now at time zone pr.timezone)::time, pr.quiet_start, pr.quiet_end)
                then 'held'
@@ -107,7 +111,11 @@ begin
                 then public.nudge_quiet_end_at(p_now, dd.tz, dd.quiet_end) end,
            p_now,
            case dd.decision
-             when 'skipped' then 'The "' || dd.item_type || '" switch or this space is turned off in Settings.'
+             when 'skipped' then case
+               when dd.item_type = 'habit' and (select (p2.prefs ->> 'habit_summary') = 'true' from public.profiles p2 where p2.user_id = dd.user_id)
+                 then 'Habit reminders are bundled into your one daily habit summary (Settings).'
+               else 'The "' || dd.item_type || '" switch or this space is turned off in Settings.'
+             end
              when 'held' then 'Quiet hours: held until ' || to_char(dd.quiet_end, 'HH12:MI AM') || '.'
            end
     from decided dd
