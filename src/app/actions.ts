@@ -300,7 +300,15 @@ const profilePatchSchema = z
     nudge_style: z.enum(["morning", "on_time", "before", "important"]),
     type_switches: z.record(z.string(), z.boolean()),
     features: z.record(z.string(), z.boolean()),
-    track_types: z.array(z.enum(["homework", "payments", "packages", "tasks"])).max(4),
+    prefs: z
+      .object({
+        hw_night_time: z.string().regex(/^(([01]\d|2[0-3]):[0-5]\d|off)$/),
+        hw_hours_before: z.number().int().min(0).max(72),
+        habit_summary: z.boolean(),
+        habit_summary_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+      })
+      .partial(),
+    track_types: z.array(z.enum(["homework", "payments", "packages", "tasks", "work", "habits", "birthdays", "renewals"])).max(8),
     timezone: z.string().max(60).refine((tz) => {
       try {
         new Intl.DateTimeFormat("en-US", { timeZone: tz });
@@ -319,8 +327,14 @@ export async function updateProfile(patch: ProfilePatch, quiet = false): Promise
   if (!ctx) return fail("setup");
   const parsed = profilePatchSchema.safeParse(patch);
   if (!parsed.success) return fail();
-  const { error } = await ctx.supabase.from("profiles").update(parsed.data).eq("user_id", ctx.userId);
-  if (error) return fail();
+  // Small settings are merged into what is already saved, never replacing the rest.
+  const patchToSave = {
+    ...parsed.data,
+    ...(parsed.data.prefs ? { prefs: { ...(ctx.profile.prefs ?? {}), ...parsed.data.prefs } } : {}),
+    ...(parsed.data.features ? { features: { ...(ctx.profile.features ?? {}), ...parsed.data.features } } : {}),
+  };
+  const { error } = await ctx.supabase.from("profiles").update(patchToSave).eq("user_id", ctx.userId);
+  if (error) return fail("settings.error.save");
   // Changing a cookie makes Next re-draw the page, so quiet saves (onboarding) leave it to the caller.
   if (parsed.data.language && !quiet) {
     (await cookies()).set("nudge-lang", parsed.data.language, { path: "/", maxAge: 31536000, sameSite: "lax" });

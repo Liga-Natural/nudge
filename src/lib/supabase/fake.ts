@@ -7,7 +7,7 @@ type Row = Record<string, unknown>;
 type Store = { tables: Record<string, Row[]>; userId: string; needsSql?: boolean };
 
 const FAKE_USER = "00000000-0000-4000-8000-000000000001";
-const TABLES = ["profiles", "spaces", "items", "occurrences", "reminders", "item_events", "reminder_sends", "push_subscriptions", "courses", "calendar_feeds", "item_payments", "updates"];
+const TABLES = ["profiles", "spaces", "items", "occurrences", "reminders", "item_events", "reminder_sends", "push_subscriptions", "courses", "calendar_feeds", "item_payments", "updates", "delivery_attempts", "item_checklist", "assignments", "grades", "api_tokens"];
 
 function freshStore(): Store {
   return { tables: Object.fromEntries(TABLES.map((t) => [t, [] as Row[]])), userId: FAKE_USER };
@@ -36,6 +36,7 @@ const DEFAULTS: Record<string, () => Row> = {
     urgent_override: true,
     type_switches: {},
     features: {},
+    prefs: {},
     onboarded: false,
   }),
   spaces: () => ({ id: uuid(), emoji: "📁", is_default: false, notifications_enabled: true, sort_order: 0, created_at: now() }),
@@ -49,6 +50,11 @@ const DEFAULTS: Record<string, () => Row> = {
   calendar_feeds: () => ({ id: uuid(), enabled: true, last_synced_at: null, last_error: null, item_count: 0, created_at: now() }),
   item_payments: () => ({ id: uuid(), created_at: now() }),
   updates: () => ({ id: uuid(), body: null, item_id: null, created_at: now(), read_at: null }),
+  delivery_attempts: () => ({ id: uuid(), error: null, http_status: null, created_at: now() }),
+  item_checklist: () => ({ id: uuid(), done: false, sort_order: 0, created_at: now() }),
+  assignments: () => ({ id: uuid(), created_at: now() }),
+  grades: () => ({ id: uuid(), source: "manual", posted_at: now(), comment: null, created_at: now() }),
+  api_tokens: () => ({ id: uuid(), last_used_at: null, expires_at: null, revoked_at: null, created_at: now() }),
 };
 
 type Filter = (r: Row) => boolean;
@@ -223,7 +229,84 @@ export async function createFakeClient() {
         }
         return { data: null, error: null };
       }
+      if (name === "nudge_import") return { data: fakeImport(args as unknown as ImportArgs), error: null };
       return { data: null, error: { message: `unknown function ${name}`, code: "PGRST202" } };
     },
   };
+}
+
+// A small stand-in for the database's nudge_import function (0009), for browser tests only.
+type ImportArgs = { p_source: string; p_commit: boolean; p_payload: { classes?: Row[]; assignments?: Row[]; grades?: Row[] } };
+export function fakeImport(args: ImportArgs) {
+  const s = store();
+  const { p_source: source, p_commit: commit, p_payload: p } = args;
+  const kinds = ["classes", "assignments", "grades"] as const;
+  const counts = Object.fromEntries(kinds.map((k) => [k, { new: 0, updated: 0, unchanged: 0 }])) as unknown as Record<(typeof kinds)[number], Record<string, number>>;
+  const results: Row[] = [];
+  const warnings: string[] = [];
+  const courses = s.tables.courses;
+  const refs = new Set<string>();
+  for (const c of p.classes ?? []) {
+    refs.add(String(c.external_id));
+    refs.add(String(c.name).toLowerCase());
+  }
+  const courseFor = (ref: unknown): string | null => {
+    if (!ref) return null;
+    const r = String(ref);
+    const hit = courses.find((c) => c.external_id === r || String(c.name).toLowerCase() === r.toLowerCase());
+    if (hit) return hit.id as string;
+    return !commit && (refs.has(r) || refs.has(r.toLowerCase())) ? "preview-class" : null;
+  };
+
+  for (const c of p.classes ?? []) {
+    let row = courses.find((r) => r.source === source && r.external_id === c.external_id);
+    let status: string;
+    if (!row) {
+      row = courses.find((r) => String(r.name).toLowerCase() === String(c.name).toLowerCase() && !r.external_id);
+      status = row ? "updated" : "new";
+    } else status = row.name !== c.name ? "updated" : "unchanged";
+    if (commit && status === "new") courses.push({ ...DEFAULTS.courses(), user_id: s.userId, name: c.name, source, external_id: c.external_id, teacher: c.teacher ?? null });
+    else if (commit && status === "updated" && row) Object.assign(row, { name: c.name, source, external_id: c.external_id });
+    counts.classes[status]++;
+    results.push({ kind: "class", external_id: c.external_id, title: c.name, status });
+  }
+
+  for (const a of p.assignments ?? []) {
+    const courseId = courseFor(a.class);
+    if (a.class && !courseId) warnings.push(`Assignment "${a.title}": class "${a.class}" is not known, so it was added without a class.`);
+    const existing = s.tables.items.find((i) => i.source === source && i.external_uid === a.external_id && !i.feed_id);
+    let status = "new";
+    if (existing) status = existing.locally_edited ? "unchanged" : existing.title !== a.title || existing.due_at !== a.due_at || (a.done && existing.status === "open") ? "updated" : "unchanged";
+    if (commit && status === "new") {
+      const id = crypto.randomUUID();
+      s.tables.items.push({ ...DEFAULTS.items(), id, user_id: s.userId, type: "homework", title: a.title, notes: a.notes ?? null, due_at: a.due_at, all_day: false, timezone: "America/New_York", status: a.done ? "done" : "open", source, external_uid: a.external_id, course_id: courseId === "preview-class" ? null : courseId });
+      if (a.due_at) {
+        s.tables.occurrences.push({ ...DEFAULTS.occurrences(), user_id: s.userId, item_id: id, due_at: a.due_at, status: a.done ? "done" : "open" });
+        s.tables.reminders.push({ ...DEFAULTS.reminders(), user_id: s.userId, item_id: id, days_before: 1, at_time: "18:00:00" }, { ...DEFAULTS.reminders(), user_id: s.userId, item_id: id, offset_minutes: 120 });
+      }
+    } else if (commit && status === "updated" && existing) {
+      Object.assign(existing, { title: a.title, due_at: a.due_at, notes: a.notes ?? null, status: a.done ? "done" : existing.status });
+      s.tables.occurrences = s.tables.occurrences.filter((o) => o.item_id !== existing.id || o.status !== "open");
+      if (a.due_at && !a.done) s.tables.occurrences.push({ ...DEFAULTS.occurrences(), user_id: s.userId, item_id: existing.id, due_at: a.due_at });
+    }
+    counts.assignments[status]++;
+    results.push({ kind: "assignment", external_id: a.external_id, title: a.title, status });
+  }
+
+  for (const g of p.grades ?? []) {
+    const courseId = courseFor(g.class);
+    if (!courseId) {
+      warnings.push(`Grade "${g.title}": class "${g.class ?? ""}" is not known, so it was skipped.`);
+      continue;
+    }
+    const existing = s.tables.grades.find((r) => r.source === source && r.external_id === g.external_id);
+    const status = !existing ? "new" : existing.score !== g.score || existing.out_of !== g.out_of || existing.title !== g.title ? "updated" : "unchanged";
+    const percent = Math.round(((g.score as number) / (g.out_of as number)) * 10000) / 100;
+    if (commit && status === "new") {
+      s.tables.grades.push({ ...DEFAULTS.grades(), user_id: s.userId, course_id: courseId === "preview-class" ? null : courseId, title: g.title, score: g.score, out_of: g.out_of, percent, posted_at: g.posted_at ?? now(), source, external_id: g.external_id, notified_at: source === "manual" ? now() : null });
+    } else if (commit && status === "updated" && existing) Object.assign(existing, { title: g.title, score: g.score, out_of: g.out_of, percent });
+    counts.grades[status]++;
+    results.push({ kind: "grade", external_id: g.external_id, title: g.title, status });
+  }
+  return { committed: commit, counts, results, warnings };
 }

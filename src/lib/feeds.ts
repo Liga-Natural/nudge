@@ -27,8 +27,9 @@ export type FeedSyncDeps = {
 /** Homework reminders for school calendars: the night before and a couple of hours before (both adjustable in Settings). */
 export function homeworkReminders(prefs: Record<string, unknown> | null | undefined): ReminderSpec[] {
   const out: ReminderSpec[] = [];
-  const night = typeof prefs?.hw_night_time === "string" ? prefs.hw_night_time : "18:00";
-  if (night !== "off" && /^([01]\d|2[0-3]):[0-5]\d$/.test(night)) out.push({ daysBefore: 1, atTime: night });
+  const asked = typeof prefs?.hw_night_time === "string" ? prefs.hw_night_time : "18:00";
+  const night = asked === "off" || /^([01]\d|2[0-3]):[0-5]\d$/.test(asked) ? asked : "18:00";
+  if (night !== "off") out.push({ daysBefore: 1, atTime: night });
   const hours = typeof prefs?.hw_hours_before === "number" ? prefs.hw_hours_before : 2;
   if (hours > 0 && hours <= 72) out.push({ offsetMinutes: Math.round(hours * 60) });
   return out;

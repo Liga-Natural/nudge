@@ -105,8 +105,8 @@ export type AgendaEntry = {
 };
 
 export type Course = { id: string; name: string; color: string };
-export type UpdateRow = { id: string; kind: "new_item" | "changed" | "removed" | "paid" | "info"; title: string; body: string | null; item_id: string | null; created_at: string; read_at: string | null };
-export type FeedRow = { id: string; name: string; host: string; default_type: string; enabled: boolean; last_synced_at: string | null; last_error: string | null; item_count: number };
+export type UpdateRow = { id: string; kind: "new_item" | "changed" | "removed" | "paid" | "info" | "grade" | "bill"; title: string; body: string | null; item_id: string | null; created_at: string; read_at: string | null };
+export type FeedRow = { id: string; name: string; host: string; default_type: string; enabled: boolean; last_synced_at: string | null; last_error: string | null; item_count: number; kind?: "calendar" | "classroom" | "bills"; course_id?: string | null };
 
 export const ITEM_TYPES: ItemType[] = ["task", "homework", "payment", "event", "renewal", "work", "habit", "birthday"];
 

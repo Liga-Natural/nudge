@@ -32,8 +32,13 @@ const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
 const WEEKDAYS: Record<string, number> = {
   sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
   domingo: 0, lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5, sabado: 6,
+  // short forms people actually type
+  sun: 0, mon: 1, tues: 2, tue: 2, weds: 3, wed: 3, thurs: 4, thur: 4, thu: 4, fri: 5, sat: 6,
 };
-const WEEKDAY_RE = Object.keys(WEEKDAYS).join("|");
+// Longest names first, so "monday" is read whole and not as "mon" + "day".
+const WEEKDAY_RE = Object.keys(WEEKDAYS)
+  .sort((x, y) => y.length - x.length)
+  .join("|");
 
 const UNIT_MIN: Record<string, number> = {
   minute: 1, min: 1, minuto: 1, hour: 60, hr: 60, hora: 60, day: 1440, dia: 1440, week: 10080, semana: 10080,
@@ -116,7 +121,7 @@ function extractRepeat(text: string): { text: string; rule: Rule | null } {
   }
   // every monday (and wednesday) / cada lunes
   if (!rule) {
-    m = new RegExp(String.raw`\b(?:every|each|cada)\s+((?:${WEEKDAY_RE})(?:\s*(?:,|and|y)\s*(?:${WEEKDAY_RE}))*)\b`).exec(t);
+    m = new RegExp(String.raw`\b(?:every|each|cada)\s+((?:${WEEKDAY_RE})(?:\s*(?:,|and|y|&)?\s*(?:${WEEKDAY_RE}))*)\b`).exec(t);
     if (m) {
       matched = m;
       const days = [...m[1].matchAll(new RegExp(WEEKDAY_RE, "g"))].map((x) => WEEKDAYS[x[0]]);

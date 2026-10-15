@@ -8,7 +8,7 @@ import { formatDay, formatMoney, formatTime } from "@/lib/time";
 import type { UpdateRow } from "@/lib/types";
 import { MarkRead } from "./mark-read";
 
-const EMOJI: Record<string, string> = { new_item: "🆕", changed: "✏️", removed: "🗑️", paid: "💳", info: "ℹ️" };
+const EMOJI: Record<string, string> = { new_item: "🆕", changed: "✏️", removed: "🗑️", paid: "💳", info: "ℹ️", grade: "🎓", bill: "🧾" };
 
 export default async function UpdatesPage() {
   const ctx = await getReadyCtx();
@@ -33,7 +33,7 @@ export default async function UpdatesPage() {
         <ul className="flex flex-col gap-2">
           {rows.map((r) => {
             const when = new Date(r.created_at);
-            const body = r.kind === "paid" && r.body ? formatMoney(Number(r.body), "USD", lang) : r.kind === "new_item" ? null : r.body;
+            const body = (r.kind === "paid" || r.kind === "bill") && r.body && /^\d+$/.test(r.body) ? formatMoney(Number(r.body), "USD", lang) : r.kind === "new_item" ? null : r.body;
             const inner = (
               <>
                 <span aria-hidden className="text-2xl">
