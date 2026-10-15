@@ -132,7 +132,15 @@ describe("the Delivery log", () => {
   });
 });
 
-describe("the read-only 'last reminders' query", () => {
+describe("the read-only 'last reminders' queries", () => {
+  it("the version for before file 0007 runs too, and shows the style that caused the silence", async () => {
+    await setup("nudge_style|'morning'");
+    await addTestNudge(at(2026, 10, 14, 23, 3));
+    const sql = readFileSync(join(process.cwd(), "supabase", "tests", "last_reminders_before_0007.sql"), "utf8").replace(/;\s*$/, "");
+    const rows = await db.query<{ title: string; nudge_style: string; delivery_status: string; due_miami: string }>(sql);
+    expect(rows.rows[0]).toMatchObject({ title: "Test nudge", nudge_style: "morning", delivery_status: "NO SEND RECORD", due_miami: "Wed Oct 14, 11:03 PM" });
+  });
+
   it("runs, and shows Miami time and the delivery status", async () => {
     await setup("");
     await addTestNudge(at(2026, 10, 14, 23, 3));

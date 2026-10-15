@@ -20,7 +20,7 @@ export type FeedSyncDeps = {
   rpc: Rpc;
   now: Date;
   decrypt: (cipher: string) => string;
-  fetchText: (url: string, etag: string | null) => Promise<FetchResult>;
+  fetchText: (url: string, etag: string | null, expect: "calendar" | "json") => Promise<FetchResult>;
   limit?: number;
 };
 
@@ -67,11 +67,11 @@ export async function syncDueFeeds(deps: FeedSyncDeps): Promise<{ synced: number
       try {
         url = deps.decrypt(feed.url_encrypted);
       } catch {
-        await report(null, null, "We couldn't read the saved address. Remove it and add it again (the encryption key may have changed).");
+        await report(null, null, `We couldn't read the saved ${isBills ? "bills link" : "calendar address"}. Remove it and add it again (the encryption key may have changed).`);
         out.failed++;
         continue;
       }
-      const res = await deps.fetchText(url, feed.etag);
+      const res = await deps.fetchText(url, feed.etag, isBills ? "json" : "calendar");
       if (res.kind === "error") {
         await report(null, null, res.message);
         out.failed++;

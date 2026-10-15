@@ -179,6 +179,7 @@ export const esP3: Record<keyof typeof enP3, string> = {
   "bills.url": "Enlace de facturas de Joker",
   "bills.add": "Conectar facturas de Joker",
   "settings.timezone.use": "Usar la zona horaria de este teléfono: {zone}",
+  "settings.style.hint": "Un recordatorio que añades siempre suena a la hora que elegiste. Esto solo cambia con qué empiezan los elementos nuevos: “Un poco antes” añade un aviso de 30 minutos, y el resumen de la mañana es su propio interruptor abajo.",
   "updates.grade": "Nota",
   "updates.bill": "Factura",
   "feeds.error.save": "No se pudo guardar el enlace. Inténtalo otra vez.",

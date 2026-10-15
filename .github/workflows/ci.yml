@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches-ignore: [main]
+    # Notes and docs alone never need a build.
+    paths-ignore: ["**.md", "docs/**"]
   pull_request:
 
 # A newer push cancels the older run for the same branch.

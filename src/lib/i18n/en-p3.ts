@@ -187,6 +187,7 @@ export const enP3 = {
   "bills.url": "Joker bills feed link",
   "bills.add": "Connect Joker bills",
   "settings.timezone.use": "Use this phone’s time zone: {zone}",
+  "settings.style.hint": "A reminder you add always rings at the time you chose. This only changes what new items start with: “A little before” adds a 30-minute warning, and the morning summary is its own switch below.",
   "updates.grade": "Grade",
   "updates.bill": "Bill",
   "feeds.error.save": "The feed could not be saved. Try again.",

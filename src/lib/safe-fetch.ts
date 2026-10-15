@@ -58,42 +58,45 @@ const defaultResolver: Resolver = async (host) => (await lookup(host, { all: tru
 
 export async function safeFetchText(
   input: string,
-  opts: { etag?: string | null; maxBytes?: number; timeoutMs?: number; resolver?: Resolver; fetchImpl?: typeof fetch } = {},
+  opts: { etag?: string | null; maxBytes?: number; timeoutMs?: number; resolver?: Resolver; fetchImpl?: typeof fetch; expect?: "calendar" | "json" } = {},
 ): Promise<FetchResult> {
+  const json = opts.expect === "json";
+  // What the address is called in the messages a person reads.
+  const noun = json ? "bills link" : "calendar address";
   const maxBytes = opts.maxBytes ?? 2_000_000;
   const doFetch = opts.fetchImpl ?? fetch;
   const resolve = opts.resolver ?? defaultResolver;
   let target = checkFeedUrl(input);
   for (let hop = 0; hop < 4; hop++) {
-    if (!target.ok) return { kind: "error", message: "That calendar address isn't allowed." };
+    if (!target.ok) return { kind: "error", message: `That ${noun} isn't allowed.` };
     try {
       const addresses = isIP(target.url.hostname) ? [target.url.hostname] : await resolve(target.url.hostname);
-      if (!addresses.length || addresses.some(isPrivateAddress)) return { kind: "error", message: "That calendar address isn't allowed." };
+      if (!addresses.length || addresses.some(isPrivateAddress)) return { kind: "error", message: `That ${noun} isn't allowed.` };
     } catch {
-      return { kind: "error", message: "We couldn't find that calendar address." };
+      return { kind: "error", message: `We couldn't find that ${noun}.` };
     }
     let res: Response;
     try {
       res = await doFetch(target.url, {
         redirect: "manual",
         signal: AbortSignal.timeout(opts.timeoutMs ?? 6000),
-        headers: { "User-Agent": "Nudge calendar sync", Accept: "text/calendar, text/plain;q=0.8", ...(opts.etag ? { "If-None-Match": opts.etag } : {}) },
+        headers: { "User-Agent": "Nudge calendar sync", Accept: json ? "application/json, text/plain;q=0.8" : "text/calendar, text/plain;q=0.8", ...(opts.etag ? { "If-None-Match": opts.etag } : {}) },
       });
     } catch {
-      return { kind: "error", message: "The calendar address did not answer in time." };
+      return { kind: "error", message: `The ${noun} did not answer in time.` };
     }
     if (res.status === 304) return { kind: "not_modified" };
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers.get("location");
-      if (!loc) return { kind: "error", message: "The calendar address sent us somewhere we can't follow." };
+      if (!loc) return { kind: "error", message: `The ${noun} sent us somewhere we can't follow.` };
       target = checkFeedUrl(new URL(loc, target.url).toString());
       continue;
     }
-    if (!res.ok) return { kind: "error", message: `The calendar address answered with an error (${res.status}).` };
+    if (!res.ok) return { kind: "error", message: `The ${noun} answered with an error (${res.status}).` };
     const length = Number(res.headers.get("content-length") ?? 0);
-    if (length > maxBytes) return { kind: "error", message: "That calendar is too big." };
+    if (length > maxBytes) return { kind: "error", message: json ? "That bills list is too big." : "That calendar is too big." };
     const reader = res.body?.getReader();
-    if (!reader) return { kind: "error", message: "The calendar came back empty." };
+    if (!reader) return { kind: "error", message: json ? "The bills link came back empty." : "The calendar came back empty." };
     const chunks: Uint8Array[] = [];
     let total = 0;
     for (;;) {
@@ -102,13 +105,15 @@ export async function safeFetchText(
       total += value.length;
       if (total > maxBytes) {
         await reader.cancel();
-        return { kind: "error", message: "That calendar is too big." };
+        return { kind: "error", message: json ? "That bills list is too big." : "That calendar is too big." };
       }
       chunks.push(value);
     }
     const text = Buffer.concat(chunks).toString("utf8");
-    if (!/BEGIN:VCALENDAR/i.test(text)) return { kind: "error", message: "That address isn't a calendar feed." };
+    if (json) {
+      if (!/^\s*[[{]/.test(text)) return { kind: "error", message: "The bills link did not return JSON. Check that it is the Joker bills feed address (not a web page)." };
+    } else if (!/BEGIN:VCALENDAR/i.test(text)) return { kind: "error", message: "That address isn't a calendar feed." };
     return { kind: "ok", text, etag: res.headers.get("etag") };
   }
-  return { kind: "error", message: "The calendar address redirected too many times." };
+  return { kind: "error", message: `The ${noun} redirected too many times.` };
 }

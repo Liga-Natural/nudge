@@ -139,6 +139,7 @@ export function SettingsForm({
             </button>
           ))}
         </div>
+        <p className="text-sm text-muted">{t("settings.style.hint")}</p>
       </section>
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-morning">
