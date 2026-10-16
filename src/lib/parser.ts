@@ -144,7 +144,25 @@ function freqRule(word: string, interval: number, dayOfMonth?: string): Rule {
   return rule;
 }
 
-const HOMEWORK_RE = /\b(homework|hw|hmwk|worksheet|assignment|exam|quiz|test|essay|project|midterm|final|tarea|tareas|deberes|examen|ensayo|proyecto|prueba)\b/;
+// Words that only ever mean school work.
+const HOMEWORK_RE = /\b(homework|hw|hmwk|worksheet|assignment|essay|project|tarea|tareas|deberes|ensayo|proyecto)\b/;
+// Words that are school work only with a class name or school words nearby: "test nudge" is just a task.
+const TEST_WORD_RE = /\b(exam|exams|quiz|quizzes|test|tests|midterm|midterms|final|finals|examen|examenes|prueba|parcial)\b/;
+const SCHOOL_WORD_RE =
+  /\b(class|classes|clase|school|escuela|colegio|course|teacher|professor|maestro|maestra|profesor|profesora|lecture|chapter|ch|unit|semester|study|estudiar|math|maths|algebra|geometry|calculus|science|biology|chemistry|physics|history|english|spanish|french|literature|reading|writing|grammar|spelling|vocab|vocabulary|geography|economics|psychology|art|music|matematicas|ciencias|historia|ingles|espanol|lectura|biologia|quimica|fisica)\b/;
+
+/** "exam / quiz / test" count as school only with a class name or school words around them. */
+export function looksLikeSchool(t: string, courses: string[] = []): boolean {
+  if (HOMEWORK_RE.test(t)) return true;
+  if (!TEST_WORD_RE.test(t)) return false;
+  if (SCHOOL_WORD_RE.test(t)) return true;
+  const words = new Set(t.split(/[^a-z0-9]+/).filter(Boolean));
+  return courses.some((c) =>
+    norm(c)
+      .split(/[^a-z0-9]+/)
+      .some((w) => w.length >= 3 && !/^\d+$/.test(w) && words.has(w)),
+  );
+}
 const PAYMENT_RE = /\b(pay|bill|rent|invoice|subscription|tuition|mortgage|pagar|pago|factura|renta|alquiler|recibo|suscripcion|matricula|hipoteca)\b/;
 const RENEWAL_RE = /\b(renew|renewal|registration|license|licence|passport|expires?|expiration|renovar|renovacion|registro|licencia|pasaporte|vence)\b/;
 const EVENT_RE = /\b(dentist|doctor|appointment|meeting|call|interview|party|game|match|practice|dentista|doctor|cita|reunion|llamada|entrevista|fiesta|partido|practica)\b/;
@@ -164,12 +182,12 @@ export function workKind(t: string): WorkKind {
   return "posting";
 }
 
-function detectType(text: string, o: { hasAmount: boolean; hasDate: boolean; hasRepeat: boolean }): ItemType {
+function detectType(text: string, o: { hasAmount: boolean; hasDate: boolean; hasRepeat: boolean; courses?: string[] }): ItemType {
   const t = norm(text);
   if (BIRTHDAY_RE.test(t) && !BIRTHDAY_NOT.test(t) && o.hasDate) return "birthday";
   if (HABIT_RE.test(t) || (o.hasRepeat && HABIT_VERB_RE.test(t) && !PAYMENT_RE.test(t))) return "habit";
   if (WORK_RE.test(t)) return "work";
-  if (HOMEWORK_RE.test(t)) return "homework";
+  if (looksLikeSchool(t, o.courses)) return "homework";
   if (PAYMENT_RE.test(t) || o.hasAmount) return "payment";
   if (RENEWAL_RE.test(t)) return "renewal";
   if (EVENT_RE.test(t)) return "event";
@@ -294,7 +312,7 @@ export function parseQuickAdd(input: string, opts: { now: Date; tz: string; lang
   }
   if (dueAt && !repeat.rule && dueAt.getTime() < now.getTime() - 60_000) warnings.push("past");
 
-  const type = detectType(`${input}`, { hasAmount: amount.cents !== null, hasDate: dueAt !== null, hasRepeat: !!repeat.rule });
+  const type = detectType(`${input}`, { hasAmount: amount.cents !== null, hasDate: dueAt !== null, hasRepeat: !!repeat.rule, courses: opts.courses });
   const title = tidyTitle(text) || tidyTitle(input);
   // A birthday comes back every year, without having to say so.
   const rrule = repeat.rule ? ruleToString(repeat.rule) : type === "birthday" && dueAt ? "FREQ=YEARLY" : null;

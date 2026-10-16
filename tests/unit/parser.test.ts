@@ -105,3 +105,27 @@ describe("Spanish", () => {
     expect(wall(r.dueAt)).toMatchObject({ m: 10, d: 28, h: 15 });
   });
 });
+
+describe("test / exam / quiz only mean school with a class or school words (bug: 'test nudge' became Homework)", () => {
+  it("test nudge today 4:46pm is a plain task", () => {
+    const r = parse("test nudge today 4:46pm");
+    expect(r.type).toBe("task");
+    expect(wall(r.dueAt)).toMatchObject({ d: 14, h: 16, mi: 46 });
+  });
+  it("other non-school uses stay tasks", () => {
+    for (const s of ["final notice letter tomorrow", "test the new sign tomorrow 5pm", "exam room key friday"]) {
+      expect(parse(s).type, s).toBe("task");
+    }
+  });
+  it("school words or a class name make them homework", () => {
+    for (const s of ["math test friday", "quiz on chapter 4 thursday", "history exam monday 9am", "hw quiz friday", "study for the midterm friday", "class quiz tomorrow", "examen de ciencias el viernes"]) {
+      expect(parse(s).type, s).toBe("homework");
+    }
+    const withCourse = parseQuickAdd("Biol test friday", { now: NOW, tz: NY, lang: "auto", courses: ["Biol 101"] });
+    expect(withCourse.type).toBe("homework");
+  });
+  it("homework words still win on their own", () => {
+    expect(parse("essay due friday").type).toBe("homework");
+    expect(parse("worksheet tomorrow").type).toBe("homework");
+  });
+});

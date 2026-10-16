@@ -16,6 +16,16 @@ const STATUS_STYLE: Record<string, string> = {
   no_phone: "bg-late-bg text-late-ink",
 };
 
+/** The database writes the held reason in English; show it in the person's language with the release time. */
+function reasonText(a: Attempt, t: ReturnType<typeof makeT>): string | null {
+  if (!a.error) return null;
+  if (a.status === "held") {
+    const m = /(?:will send at|held until) (\d{1,2}:\d{2} [AP]M)/i.exec(a.error);
+    if (m) return t("delivery.heldReason", { time: m[1].replace(/^0/, "") });
+  }
+  return a.error;
+}
+
 export default async function DeliveryLogPage() {
   const ctx = await getReadyCtx();
   if (!ctx) return null;
@@ -90,7 +100,7 @@ export default async function DeliveryLogPage() {
                 <p className="text-sm text-muted">
                   {formatDay(new Date(a.created_at), tz, lang)} · {formatTime(new Date(a.created_at), tz, lang)} · {t(`delivery.kind.${a.kind}` as Key)}
                 </p>
-                {a.error && <p className="mt-1 text-sm">{a.error}</p>}
+                {reasonText(a, t) && <p className="mt-1 text-sm">{reasonText(a, t)}</p>}
               </li>
             ))}
           </ul>

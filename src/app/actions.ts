@@ -127,6 +127,7 @@ export async function createItem(raw: ItemInput): Promise<Result<{ id: string }>
       course_id: v.courseId,
       location: v.location,
       subtype: v.type === "work" ? v.subtype : null,
+      ...(v.ringAnyway === undefined ? {} : { ring_anyway: v.ringAnyway }),
     })
     .select("id")
     .single();
@@ -175,6 +176,7 @@ export async function updateItem(itemId: string, raw: ItemInput): Promise<Result
       course_id: v.courseId,
       location: v.location,
       subtype: v.type === "work" ? v.subtype : null,
+      ...(v.ringAnyway === undefined ? {} : { ring_anyway: v.ringAnyway }),
     })
     .eq("id", itemId);
   if (error) return fail("item.error.save");

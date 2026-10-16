@@ -19,3 +19,19 @@ export function groupByCourse(entries: AgendaEntry[], courses: Course[]): Course
 }
 
 export const upcomingExams = (entries: AgendaEntry[]) => entries.filter((e) => e.type === "homework" && isExam(e.title));
+
+export type SchoolSplit = { late: AgendaEntry[]; exams: AgendaEntry[]; groups: CourseGroup[] };
+
+/**
+ * The School page's three places. Every homework item lands in exactly one:
+ * Late (already past), Upcoming exams (an exam that is still ahead), or Assignments (the rest, by course).
+ */
+export function splitSchool(entries: AgendaEntry[], courses: Course[], now: Date): SchoolSplit {
+  const homework = entries.filter((e) => e.type === "homework");
+  const isLate = (e: AgendaEntry) => new Date(e.dueAt) < now;
+  const late = homework.filter(isLate).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  const ahead = homework.filter((e) => !isLate(e));
+  const exams = ahead.filter((e) => isExam(e.title));
+  const groups = groupByCourse(ahead.filter((e) => !isExam(e.title)), courses);
+  return { late, exams, groups };
+}

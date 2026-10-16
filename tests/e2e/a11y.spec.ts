@@ -26,6 +26,8 @@ test.describe("accessibility (axe)", () => {
     await page.getByRole("button", { name: /^next/i }).click();
     await checkA11y(page, "onboarding times");
     await page.getByRole("button", { name: /^next/i }).click();
+    await checkA11y(page, "onboarding quiet hours");
+    await page.getByRole("button", { name: /^next/i }).click();
     await checkA11y(page, "onboarding notifications");
     await page.getByRole("button", { name: /skip for now/i }).click();
     await checkA11y(page, "onboarding mode");

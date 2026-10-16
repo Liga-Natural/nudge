@@ -38,7 +38,7 @@ test.describe("onboarding", () => {
     await page.getByRole("button", { name: /get started/i }).click();
 
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/track/i);
-    await expect(page.getByText(/step 1 of 5/i)).toBeVisible();
+    await expect(page.getByText(/step 1 of 6/i)).toBeVisible();
     await page.getByRole("checkbox", { name: /homework/i }).click();
     await page.getByRole("checkbox", { name: /payments/i }).click();
     await expect(page.getByRole("checkbox", { name: /homework/i })).toHaveAttribute("aria-checked", "true");
@@ -49,6 +49,12 @@ test.describe("onboarding", () => {
     await page.getByRole("button", { name: /^next/i }).click();
 
     await expect(page.getByLabel(/morning summary at/i)).toHaveValue("08:00");
+    await page.getByRole("button", { name: /^next/i }).click();
+
+    // Quiet hours are a choice of their own.
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/quiet/i);
+    await expect(page.getByRole("radio", { name: /overnight/i })).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("radio", { name: /late night/i }).click();
     await page.getByRole("button", { name: /^next/i }).click();
 
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/notifications/i);

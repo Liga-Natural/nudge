@@ -6,9 +6,10 @@ import { createItem, parseText, type ParsedForm } from "@/app/actions";
 import { ItemForm } from "@/components/item-form";
 import { useT } from "@/lib/i18n/client";
 import type { ItemType } from "@/lib/parser";
+import type { QuietSettings } from "@/lib/quiet";
 import type { Course, Space } from "@/lib/types";
 
-export function AddFlow({ spaces, courses, defaultSpaceId, showSpaces, enabledTypes }: { spaces: Space[]; courses: Course[]; defaultSpaceId: string | null; showSpaces: boolean; enabledTypes: ItemType[] }) {
+export function AddFlow({ spaces, courses, defaultSpaceId, showSpaces, enabledTypes, quiet }: { quiet?: QuietSettings; spaces: Space[]; courses: Course[]; defaultSpaceId: string | null; showSpaces: boolean; enabledTypes: ItemType[] }) {
   const t = useT();
   const router = useRouter();
   const [text, setText] = useState("");
@@ -41,6 +42,8 @@ export function AddFlow({ spaces, courses, defaultSpaceId, showSpaces, enabledTy
           spaces={spaces}
           courses={courses}
           enabledTypes={enabledTypes}
+          quiet={quiet}
+          isNew
           showSpaces={showSpaces}
           warnings={warnings}
           submitLabel={t("add.save")}

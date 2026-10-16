@@ -40,14 +40,17 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
   const item = itemData as ItemRow | null;
   if (!item) return notFound;
 
-  const [remRes, occRes, evRes, spaces, courseRes, checkRes] = await Promise.all([
+  const [remRes, occRes, evRes, spaces, courseRes, checkRes, ringRes] = await Promise.all([
     supabase.from("reminders").select("id,item_id,offset_minutes,days_before,at_time").eq("item_id", id),
     supabase.from("occurrences").select("id,item_id,due_at,status,snoozed_until,snooze_count,done_at").eq("item_id", id).order("due_at", { ascending: false }).limit(40),
     supabase.from("item_events").select("id,item_id,kind,detail,created_at").eq("item_id", id).order("created_at", { ascending: false }).limit(30),
     loadSpaces(supabase),
     supabase.from("courses").select("id,name,color").order("created_at"),
     supabase.from("item_checklist").select("id,item_id,text,done,sort_order").eq("item_id", id).order("sort_order"),
+    // Separate and forgiving: a database without file 0011 simply has no such column yet.
+    supabase.from("items").select("ring_anyway").eq("id", id).single(),
   ]);
+  const ringAnyway = (ringRes.data as { ring_anyway?: boolean } | null)?.ring_anyway === true;
   const checklist = (checkRes.data ?? []) as ChecklistRow[];
   const courses = (courseRes.data ?? []) as Course[];
   const reminders = ((remRes.data ?? []) as ReminderDbRow[]).map(rowToReminder);
@@ -86,6 +89,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
     subtype: (item.subtype as "game_day" | "registration" | "sponsor" | "posting" | null) ?? null,
     checklist: checklist.map((c) => ({ text: c.text, done: c.done })),
     reminders,
+    ringAnyway,
   };
   const streak = item.type === "habit" ? computeStreak(occs.map((o) => ({ dueAt: o.due_at, status: o.status })), new Date(), tz) : null;
 
@@ -199,7 +203,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
         )}
       </section>
 
-      <EditItem initial={initial} spaces={spaces} courses={courses} showSpaces={profile.mode === "full"} itemId={item.id} enabledTypes={enabledItemTypes(profile.features)} />
+      <EditItem initial={initial} spaces={spaces} courses={courses} showSpaces={profile.mode === "full"} itemId={item.id} enabledTypes={enabledItemTypes(profile.features)} quiet={{ start: profile.quiet_start, end: profile.quiet_end, urgentOverride: profile.urgent_override }} />
 
       <section className="card flex flex-col gap-2 p-5" aria-labelledby="hist-h">
         <h2 id="hist-h" className="text-lg font-bold">
