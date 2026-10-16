@@ -1,35 +1,96 @@
 @import "tailwindcss";
 
+/* Light is the default. Dark follows the phone's setting. Same warm cream + orange->coral, just in the dark. */
 :root {
+  color-scheme: light dark;
   --background: #faf8f5;
   --foreground: #1c1917;
+  --ink: #1c1917;
+  --muted: #6b6560;
+  --line: #e7e2db;
+  --card: #ffffff;
+  --accent: #e8590c;
+  --accent-2: #e5484d;
+  --accent-text: #c2410c;
+  --accent-soft: #fff1e6;
+  --late-bg: #fdecec;
+  --late-ink: #b42318;
+  --ok-bg: #e2f5e8;
+  --warn-bg: #ffefd6;
+  --neutral-bg: #eeeae4;
+  --hw: #e4edff;
+  --pay: #e2f5e8;
+  --pkg: #ffefd6;
+  --task: #f1e7ff;
+  --event: #ffe6ec;
+  --renewal: #dff3f3;
+  --work: #e3e8ff;
+  --habit: #e6f4d9;
+  --birthday: #ffe3f1;
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 6px 20px rgb(28 25 23 / 0.06);
+  --backdrop: rgb(28 25 23 / 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: #15120f;
+    --foreground: #f4efe9;
+    --ink: #f4efe9;
+    --muted: #a8a098;
+    --line: #38332e;
+    --card: #211d1a;
+    --accent-text: #ff9a5c;
+    --accent-soft: #3a2314;
+    --late-bg: #3a1b1b;
+    --late-ink: #ff8f85;
+    --ok-bg: #1d3a2a;
+    --warn-bg: #3d2d16;
+    --neutral-bg: #2d2925;
+    --hw: #1f2c49;
+    --pay: #1d3a2a;
+    --pkg: #3d2d16;
+    --task: #2f2444;
+    --event: #43212f;
+    --renewal: #1b3939;
+    --work: #252d4f;
+    --habit: #2a3a1f;
+    --birthday: #43213a;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.35);
+    --backdrop: rgb(0 0 0 / 0.55);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-ink: #1c1917;
-  --color-muted: #6b6560;
-  --color-line: #e7e2db;
-  --color-card: #ffffff;
-  --color-accent: #e8590c;
-  --color-accent-2: #e5484d;
-  --color-accent-text: #c2410c;
-  --color-accent-soft: #fff1e6;
-  --color-late-bg: #fdecec;
-  --color-late-ink: #b42318;
-  --color-hw: #e4edff;
-  --color-pay: #e2f5e8;
-  --color-pkg: #ffefd6;
-  --color-task: #f1e7ff;
-  --color-event: #ffe6ec;
-  --color-renewal: #dff3f3;
-  --color-work: #e3e8ff;
-  --color-habit: #e6f4d9;
-  --color-birthday: #ffe3f1;
-  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 6px 20px rgb(28 25 23 / 0.06);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-card: var(--card);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-late-bg: var(--late-bg);
+  --color-late-ink: var(--late-ink);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn-bg: var(--warn-bg);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-hw: var(--hw);
+  --color-pay: var(--pay);
+  --color-pkg: var(--pkg);
+  --color-task: var(--task);
+  --color-event: var(--event);
+  --color-renewal: var(--renewal);
+  --color-work: var(--work);
+  --color-habit: var(--habit);
+  --color-birthday: var(--birthday);
+  --shadow-card: var(--shadow-card);
 }
 
+html {
+  background: var(--background);
+}
 body {
   background: var(--background);
   color: var(--foreground);
@@ -37,8 +98,10 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* One primary button per screen: full width, 54px tall, fully rounded, warm gradient. */
+/* One primary button per screen: full width, 54px tall, fully rounded, warm gradient. Springs when pressed. */
 .btn-primary {
+  position: relative;
+  overflow: hidden;
   display: flex;
   width: 100%;
   min-height: 54px;
@@ -51,13 +114,16 @@ body {
   font-size: 1.1875rem; /* 19px bold counts as large text for contrast */
   font-weight: 700;
   color: #fff;
-  transition: transform 120ms ease, opacity 120ms ease;
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 120ms ease, box-shadow 200ms ease;
+  box-shadow: 0 6px 18px rgb(232 89 12 / 0.28);
 }
 .btn-primary:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgb(232 89 12 / 0.25);
 }
 .btn-primary:disabled {
   opacity: 0.45;
+  box-shadow: none;
 }
 
 .btn-quiet {
@@ -68,16 +134,20 @@ body {
   justify-content: center;
   gap: 0.4rem;
   border-radius: 9999px;
-  border: 1px solid var(--color-line);
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--card);
   padding: 0 1rem;
   font-weight: 600;
-  color: var(--color-ink);
+  color: var(--ink);
+  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-quiet:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .card {
   border-radius: 22px;
-  background: #fff;
+  background: var(--card);
   box-shadow: var(--shadow-card);
 }
 
@@ -91,31 +161,58 @@ body {
   gap: 0.5rem;
   border-radius: 22px;
   border: 2px solid transparent;
-  background: #fff;
+  background: var(--card);
   padding: 1rem 0.75rem;
   text-align: center;
   font-weight: 600;
   box-shadow: var(--shadow-card);
-  transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 120ms ease, border-color 120ms ease;
 }
 .tile:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 .tile[aria-pressed="true"],
 .tile[aria-checked="true"] {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+/* The check badge on a chosen tile. */
+.tile[aria-pressed="true"]::after,
+.tile[aria-checked="true"]::after {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  height: 24px;
+  width: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-image: linear-gradient(135deg, #e8590c, #e5484d);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  animation: badge-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes badge-pop {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .field {
   width: 100%;
   min-height: 48px;
   border-radius: 16px;
-  border: 1px solid var(--color-line);
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--card);
   padding: 0.65rem 1rem;
   font-size: 1rem;
-  color: var(--color-ink);
+  color: var(--ink);
 }
 .field:focus-visible,
 .btn-primary:focus-visible,
@@ -123,11 +220,11 @@ body {
 .tile:focus-visible,
 a:focus-visible,
 button:focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Gentle motion, under 400 ms, switched off for people who prefer less movement. */
+/* ---------------------------------------------------------------- motion (all under ~400 ms) */
 @keyframes slide-in {
   from {
     opacity: 0;
@@ -141,6 +238,11 @@ button:focus-visible {
 .slide-in {
   animation: slide-in 280ms ease both;
 }
+/* Lists settle in one after another: set style="--i: n" on each row. */
+.stagger {
+  animation: slide-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms);
+}
 @keyframes ring-spin {
   to {
     transform: rotate(360deg);
@@ -150,19 +252,245 @@ button:focus-visible {
   width: 96px;
   height: 96px;
   border-radius: 9999px;
-  border: 8px solid var(--color-accent-soft);
-  border-top-color: var(--color-accent);
+  border: 8px solid var(--accent-soft);
+  border-top-color: var(--accent);
   animation: ring-spin 900ms linear infinite;
 }
-@media (prefers-reduced-motion: reduce) {
-  .slide-in,
-  .ring {
-    animation: none;
+
+/* Bottom sheets spring open (a little overshoot), and the page behind fades. */
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
   }
-  .tile,
-  .btn-primary {
-    transition: none;
+  to {
+    opacity: 1;
   }
+}
+@keyframes sheet-up {
+  0% {
+    transform: translateY(100%);
+  }
+  60% {
+    transform: translateY(-2.5%);
+  }
+  100% {
+    transform: none;
+  }
+}
+.sheet-backdrop {
+  background: var(--backdrop);
+  animation: sheet-fade 200ms ease both;
+}
+.sheet-panel {
+  animation: sheet-up 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 220ms ease;
+  box-shadow: 0 -10px 40px rgb(0 0 0 / 0.18);
+}
+
+/* Late: gently pulses once to say "look here", then stays calm. */
+@keyframes late-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(229 72 77 / 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgb(229 72 77 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(229 72 77 / 0);
+  }
+}
+.late-pulse {
+  animation: late-pulse 1100ms ease-out 1 600ms both;
+}
+
+/* Done: the check draws itself and the row folds away. */
+@keyframes row-away {
+  0% {
+    opacity: 1;
+    transform: none;
+    max-height: 120px;
+  }
+  60% {
+    opacity: 0;
+    transform: translateX(40px);
+    max-height: 120px;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(40px);
+    max-height: 0;
+    margin-top: -0.5rem;
+  }
+}
+.row-away {
+  overflow: hidden;
+  animation: row-away 420ms ease forwards;
+}
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.check-draw path {
+  stroke-dasharray: 24;
+  animation: check-draw 260ms ease-out both;
+}
+
+/* Progress ring (Today) */
+.ring-track {
+  stroke: var(--line);
+}
+.ring-fill {
+  transition: stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Streak flame */
+@keyframes flame {
+  0%,
+  100% {
+    transform: scale(1) rotate(-2deg);
+  }
+  50% {
+    transform: scale(1.12) rotate(2deg);
+  }
+}
+.flame {
+  display: inline-block;
+  animation: flame 1600ms ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+/* "Now" line on the timeline */
+.now-line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--accent-text);
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition: transform 600ms ease;
+}
+.now-line::before {
+  content: "";
+  height: 10px;
+  width: 10px;
+  flex: none;
+  border-radius: 9999px;
+  background-image: linear-gradient(135deg, #e8590c, #e5484d);
+  box-shadow: 0 0 0 4px rgb(232 89 12 / 0.18);
+}
+.now-line::after {
+  content: "";
+  height: 2px;
+  flex: 1;
+  border-radius: 2px;
+  background-image: linear-gradient(90deg, #e8590c, transparent);
+}
+
+/* Confetti (the last item of the day) */
+@keyframes confetti-fly {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.6);
+  }
+}
+.confetti-piece {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 10px;
+  width: 6px;
+  border-radius: 2px;
+  animation: confetti-fly 1100ms cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+/* Opening animation */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none; /* only on a cold start: the page head script sets <html data-cold="1"> */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: var(--background);
+  transition: opacity 300ms ease;
+}
+html[data-cold="1"] .splash {
+  display: flex;
+  animation: splash-failsafe 0s linear 6s forwards; /* if scripts never run, do not trap anyone */
+}
+html[data-cold="1"]:not([data-splash="done"]) #header-mark {
+  visibility: hidden;
+}
+@keyframes splash-failsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+.splash[data-leaving="true"] {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash-mark {
+  position: relative;
+  height: 96px;
+  width: 96px;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 14px 40px rgb(232 89 12 / 0.35);
+  animation: splash-pop 560ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.splash-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.55) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: splash-shimmer 900ms ease 380ms both;
+}
+@keyframes splash-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes splash-shimmer {
+  to {
+    transform: translateX(120%);
+  }
+}
+.splash-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 3px;
+  width: 100%;
+  background-image: linear-gradient(90deg, #e8590c, #e5484d);
+  transform-origin: left center;
+  transition: transform 350ms ease;
+}
+
+/* Cross-fade between pages (View Transitions API; browsers without it just navigate). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: ease;
 }
 
 /* Loading placeholders: the shape of the screen shows at once while the data arrives. */
@@ -177,11 +505,42 @@ button:focus-visible {
 }
 .skeleton {
   border-radius: 16px;
-  background: var(--color-line);
+  background: var(--line);
   animation: skeleton-pulse 1.2s ease-in-out infinite;
 }
+
+/* People who prefer less movement get none of the above (fades only). */
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .slide-in,
+  .stagger,
+  .ring,
+  .skeleton,
+  .late-pulse,
+  .flame,
+  .sheet-panel,
+  .sheet-backdrop,
+  .splash-mark,
+  .splash-mark::after,
+  .tile::after,
+  .confetti-piece,
+  .check-draw path {
+    animation: none !important;
+  }
+  .tile,
+  .btn-primary,
+  .btn-quiet,
+  .ring-fill,
+  .now-line,
+  .splash-line {
+    transition: none !important;
+  }
+  .row-away {
     animation: none;
+    display: none;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

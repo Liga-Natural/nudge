@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { VTLink as Link } from "@/components/ui/vt-link";
 import { usePathname } from "next/navigation";
 import { useT } from "@/lib/i18n/client";
 
@@ -44,7 +44,7 @@ export function BottomNav({ mode }: { mode: "simple" | "full" }) {
   return (
     <nav
       aria-label={t("nav.main")}
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
     >
       <div className="mx-auto flex max-w-md items-center px-2">
         {mode === "full" ? [today, upcoming, fab, tab("/settings", "⚙️", t("nav.settings"))] : [today, fab, upcoming]}

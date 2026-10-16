@@ -1,0 +1,81 @@
+// Palabras de la Fase 4 (español). Mismas claves que en-p4.ts.
+export const esP4 = {
+  "action.undo": "Deshacer",
+
+  // horas de silencio
+  "quiet.ask.title": "Esto cae en tus horas de silencio. ¿Avisar igual?",
+  "quiet.ask.body": "Tus horas de silencio son {from}–{to}. Si lo dejas en silencio, el aviso espera y se envía a las {time}.",
+  "quiet.ask.ring": "Avisar igual",
+  "quiet.ask.keep": "Dejar en silencio",
+  "delivery.heldReason": "En espera: horas de silencio, se enviará a las {time}",
+  "onb.quiet.title.pre": "Tus horas de",
+  "onb.quiet.title.accent": "silencio",
+  "onb.quiet.title.post": "",
+  "onb.quiet.subtitle": "¿Cuándo debe callarse Nudge? Lo que llegue en ese horario espera hasta que termine.",
+  "onb.quiet.night": "De noche (10 PM–7 AM)",
+  "onb.quiet.late": "Muy tarde (11 PM–8 AM)",
+  "onb.quiet.custom": "Elegir las mías",
+  "onb.quiet.off": "Sin horas de silencio",
+  "onb.quiet.note": "Si guardas un recordatorio que cae en tus horas de silencio, Nudge te pregunta primero. Puedes cambiarlo en Ajustes.",
+
+  // escuela
+  "school.late": "Atrasadas",
+
+  // apertura
+  "opening.syncing": "Sincronizando todavía…",
+  "offline.badge": "Sin conexión · actualizado {time}",
+  "settings.opening": "Animación de apertura",
+  "settings.opening.body": "Una animación corta al abrir la app. Apágala para abrir al instante.",
+  "settings.firstName": "¿Cómo te llamamos?",
+  "settings.firstName.hint": "Se muestra en tu saludo de Hoy.",
+  "onb.name": "¿Cómo te llamamos?",
+  "onb.name.placeholder": "Tu nombre (opcional)",
+
+  // Hoy
+  "hero.label": "Hoy de un vistazo",
+  "hero.ringLabel": "{done} de {total} hechos hoy",
+  "hero.done": "hechos",
+  "hero.allDone": "todo listo",
+  "hero.nextUp": "Lo siguiente",
+  "hero.in": "en {time}",
+  "hero.now": "ahora",
+  "hero.nothingNext": "Nada pendiente. Disfrútalo.",
+  "hero.strip": "Elige un rango de días",
+  "view.today": "Hoy",
+  "view.tomorrow": "Mañana",
+  "view.week": "Esta semana",
+  "view.nothing": "Nada por aquí.",
+  "today.due.one": "cosa para hoy",
+  "today.due.many": "cosas para hoy",
+  "period.anytime": "Cualquier hora",
+  "period.morning": "Mañana",
+  "period.afternoon": "Tarde",
+  "period.evening": "Noche",
+  "now.label": "Ahora",
+
+  // atrasadas + reprogramar
+  "late.doToday": "Hacer hoy",
+  "late.reschedule": "Reprogramar",
+  "reschedule.title": "Mover a…",
+  "reschedule.tomorrow": "Mañana",
+  "reschedule.in3": "En 3 días",
+  "reschedule.nextWeek": "La próxima semana",
+  "reschedule.pick": "Elige un día",
+  "reschedule.go": "Mover",
+  "reschedule.today": "hoy",
+
+  // filas
+  "row.reorder": "Arrastra para ordenar",
+  "row.moveUp": "Subir",
+  "row.moveDown": "Bajar",
+  "row.open": "Abrir",
+  "toast.done": "Hecho: {title}",
+  "toast.turnedIn": "Entregada: {title}",
+  "toast.snoozed": "Pospuesta: {title}",
+  "toast.deleted": "Eliminada: {title}",
+  "toast.skipped": "Omitida: {title}",
+  "toast.moved": "{title} se movió a {day}",
+  "toast.paid": "Pagada: {title}",
+  "hw.turnedIn": "Marcar como entregada",
+  "habits.week": "Esta semana",
+} as const;

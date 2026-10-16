@@ -1,4 +1,7 @@
 import { AppFreshness } from "@/components/app-freshness";
+import { Opening } from "@/components/opening";
+import { ToastProvider } from "@/components/ui/toast";
+import { ViewTransitionProvider } from "@/components/ui/vt-link";
 import { BottomNav } from "@/components/bottom-nav";
 import { SetupNeeded } from "@/components/setup-needed";
 import { getCtx } from "@/lib/context";
@@ -13,9 +16,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <I18nProvider lang={ctx.profile.language} tz={ctx.profile.timezone}>
-      <AppFreshness />
-      <div className="flex-1 pb-28">{children}</div>
-      <BottomNav mode={ctx.profile.mode} />
+      <ViewTransitionProvider>
+        <ToastProvider>
+          <Opening enabled={ctx.profile.prefs?.opening_animation !== false} />
+          <AppFreshness />
+          <div className="flex-1 pb-28">{children}</div>
+          <BottomNav mode={ctx.profile.mode} />
+        </ToastProvider>
+      </ViewTransitionProvider>
     </I18nProvider>
   );
 }

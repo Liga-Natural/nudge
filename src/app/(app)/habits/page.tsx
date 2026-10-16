@@ -6,6 +6,7 @@ import { makeT } from "@/lib/i18n";
 import { ITEM_COLUMNS } from "@/lib/queries";
 import { computeStreak } from "@/lib/streak";
 import { addLocalDays, endOfLocalDay, startOfLocalDay } from "@/lib/time";
+import { weekDots } from "@/lib/today";
 import type { ItemRow, OccurrenceRow } from "@/lib/types";
 import { HabitRow } from "./habit-row";
 
@@ -42,6 +43,7 @@ export default async function HabitsPage() {
       occId: today?.id ?? null,
       todayStatus: (today?.status ?? null) as "open" | "done" | "skipped" | null,
       streak: computeStreak(mine.map((o) => ({ dueAt: o.due_at, status: o.status })), now, tz),
+      dots: weekDots(mine.map((o) => ({ dueAt: o.due_at, status: o.status })), now, tz),
     };
   });
 

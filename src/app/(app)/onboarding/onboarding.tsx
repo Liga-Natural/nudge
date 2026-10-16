@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { updateProfile } from "@/app/actions";
 import { AccentTitle } from "@/components/accent-title";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import { NudgeMark } from "@/components/ui/nudge-mark";
 import { APP_NAME } from "@/lib/config";
 import { makeT, type Key, type Lang } from "@/lib/i18n";
 
@@ -54,6 +55,7 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
   const [urgent, setUrgent] = useState(true);
   const [mode, setMode] = useState<"simple" | "full">("full");
   const [error, setError] = useState("");
+  const [firstName, setFirstName] = useState("");
 
   const index = FLOW.indexOf(step);
   const next = () => setStep(FLOW[index + 1] ?? "ring");
@@ -72,6 +74,7 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
       quiet_start: quietFrom,
       quiet_end: quietTo,
       urgent_override: urgent,
+      ...(firstName.trim() ? { prefs: { first_name: firstName.trim() } } : {}),
       mode,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       onboarded: true,
@@ -112,7 +115,7 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
               <button
                 key={l}
                 aria-pressed={lang === l}
-                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${lang === l ? "border-accent bg-accent-soft" : "border-line bg-white"}`}
+                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${lang === l ? "border-accent bg-accent-soft" : "border-line bg-card"}`}
                 onClick={() => setLang(l)}
               >
                 {l === "en" ? "English" : "Español"}
@@ -120,11 +123,15 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
             ))}
           </div>
           <div className="slide-in flex flex-1 flex-col justify-center gap-4">
-            <span aria-hidden className="text-6xl">
-              🔔
-            </span>
+            <NudgeMark size={72} id="ob" />
             <AccentTitle pre={t("onb.welcome.title.pre")} accent={APP_NAME} />
             <p className="text-lg text-muted">{t("onb.welcome.subtitle")}</p>
+            <div>
+              <label htmlFor="ob-name" className="mb-1 block text-sm font-semibold text-muted">
+                {t("onb.name")}
+              </label>
+              <input id="ob-name" className="field" maxLength={40} autoComplete="given-name" placeholder={t("onb.name.placeholder")} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </div>
           </div>
           <button className="btn-primary" onClick={() => setStep("track")}>
             {t("onb.start")} →
@@ -152,7 +159,6 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                     {o.emoji}
                   </span>
                   {t(o.label)}
-                  {on && <span aria-hidden className="absolute right-3 top-3 text-accent-text">✓</span>}
                 </button>
               );
             })}
@@ -182,7 +188,6 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                   {o.emoji}
                 </span>
                 {t(o.label)}
-                {style === o.id && <span aria-hidden className="absolute right-3 top-3 text-accent-text">✓</span>}
               </button>
             ))}
           </div>
@@ -245,7 +250,6 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                   {o.emoji}
                 </span>
                 {t(o.label)}
-                {quietChoice === o.id && <span aria-hidden className="absolute right-3 top-3 text-accent-text">✓</span>}
               </button>
             ))}
           </div>
@@ -322,7 +326,6 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                 </span>
                 {t(`settings.mode.${m}`)}
                 <span className="text-xs font-normal text-muted">{t(`settings.mode.${m}.body` as Key)}</span>
-                {mode === m && <span aria-hidden className="absolute right-3 top-3 text-accent-text">✓</span>}
               </button>
             ))}
           </div>

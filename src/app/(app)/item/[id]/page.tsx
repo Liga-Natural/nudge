@@ -182,7 +182,7 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
         )}
       </section>
 
-      <ItemActions occId={current?.id ?? null} status={status} recurring={!!item.rrule} itemId={item.id} habit={item.type === "habit"} />
+      <ItemActions occId={current?.id ?? null} status={status} recurring={!!item.rrule} itemId={item.id} title={item.title} habit={item.type === "habit"} />
 
       {checklist.length > 0 && <ChecklistView rows={checklist} />}
 

@@ -8,6 +8,12 @@ export type Prefs = {
   hw_hours_before?: number;
   habit_summary?: boolean;
   habit_summary_time?: string;
+  /** What Today calls you ("Good afternoon, Adrian"). */
+  first_name?: string;
+  /** The animated opening on a cold start. On unless this is false. */
+  opening_animation?: boolean;
+  /** Dragged order of one day's reminders: { "2026-10-15": [occurrence ids] }. */
+  day_order?: Record<string, string[]>;
 };
 
 export type Profile = {

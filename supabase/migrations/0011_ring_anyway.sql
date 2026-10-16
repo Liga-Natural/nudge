@@ -107,3 +107,22 @@ begin
   return query select * from public.dispatch_rows(claimed_ids);
 end;
 $fn$;
+
+-- "Delete" in the app now hides an item first (so Undo works); items hidden for 30 days are removed for good.
+create or replace function public.nudge_cleanup()
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $fn$
+begin
+  if to_regclass('cron.job_run_details') is not null then
+    delete from cron.job_run_details where end_time < now() - interval '7 days';
+  end if;
+  delete from public.dispatch_log where ran_at < now() - interval '30 days';
+  delete from public.reminder_sends where created_at < now() - interval '90 days';
+  delete from public.summary_sends where sent_at < now() - interval '90 days';
+  delete from public.delivery_attempts where created_at < now() - interval '30 days';
+  delete from public.items where status = 'archived' and feed_id is null and updated_at < now() - interval '30 days';
+end;
+$fn$;

@@ -51,6 +51,7 @@ test.describe("Add", () => {
 test.describe("Item detail", () => {
   test("shows details, can be edited, skipped, and deleted", async ({ page, request }) => {
     await startReady(page, request);
+    await page.getByRole("button", { name: /this week/i }).click();
     await page.getByRole("link", { name: /dentist visit/i }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Dentist visit");
     await expect(page.getByRole("heading", { name: "Reminders" })).toBeVisible();
@@ -67,9 +68,13 @@ test.describe("Item detail", () => {
     await expect(page.getByRole("button", { name: /^✓ done$/i })).toBeVisible();
 
     await page.getByRole("button", { name: /^delete$/i }).click();
-    await page.getByRole("alertdialog").getByRole("button", { name: /^delete$/i }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByText("Dentist cleaning")).toHaveCount(0);
+    await expect(page.getByTestId("item-row").filter({ hasText: "Dentist cleaning" })).toHaveCount(0);
+    // Deleting is undoable for a few seconds.
+    await expect(page.getByRole("status").filter({ hasText: "Deleted: Dentist cleaning" })).toBeVisible();
+    await page.getByRole("button", { name: "Undo" }).click();
+    await page.getByRole("button", { name: /this week/i }).click();
+    await expect(page.getByTestId("item-row").filter({ hasText: "Dentist cleaning" })).toBeVisible();
   });
 
   test("a made-up address shows a friendly 'not found'", async ({ page, request }) => {

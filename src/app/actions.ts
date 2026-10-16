@@ -10,7 +10,7 @@ import { parseQuickAdd, type ItemType } from "@/lib/parser";
 import { TYPE_FEATURE } from "@/lib/types";
 import { featureOn } from "@/lib/features";
 import { defaultReminders, reminderToRow, type ReminderSpec } from "@/lib/reminders";
-import { instantToWall } from "@/lib/time";
+import { instantToWall, wallToInstant } from "@/lib/time";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encrypt } from "@/lib/crypto";
 import { checkFeedUrl } from "@/lib/safe-fetch";
@@ -308,6 +308,8 @@ const profilePatchSchema = z
         hw_hours_before: z.number().int().min(0).max(72),
         habit_summary: z.boolean(),
         habit_summary_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        first_name: z.string().trim().max(40),
+        opening_animation: z.boolean(),
       })
       .partial(),
     track_types: z.array(z.enum(["homework", "payments", "packages", "tasks", "work", "habits", "birthdays", "renewals"])).max(8),
@@ -520,5 +522,98 @@ export async function markUpdatesRead(): Promise<Result> {
   if (!ctx) return fail("setup");
   await ctx.supabase.from("updates").update({ read_at: new Date().toISOString() }).is("read_at", null);
   refresh();
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ Phase 4: undo, reschedule, drag order
+/** Undo for "snooze": the reminder comes back to the list and the snooze count goes down by one. */
+export async function unsnoozeOccurrence(occId: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  const occ = await loadOccurrence(ctx, occId);
+  if (!occ) return fail();
+  const { error } = await ctx.supabase
+    .from("occurrences")
+    .update({ snoozed_until: null, snooze_count: Math.max(0, occ.snooze_count - 1) })
+    .eq("id", occId);
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * Moves one reminder to another day (same time of day). "Do today" uses today's date; if that time has
+ * already passed it becomes an all-day item for that day so it is not late straight away.
+ */
+export async function moveOccurrence(occId: string, day: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  const parsed = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(day);
+  if (!parsed.success || !z.string().uuid().safeParse(occId).success) return fail();
+  const { data: occ } = await ctx.supabase.from("occurrences").select("id,item_id,due_at,status").eq("id", occId).single();
+  const o = occ as { id: string; item_id: string; due_at: string; status: string } | null;
+  if (!o || o.status !== "open") return fail();
+  const { data: itemData } = await ctx.supabase.from("items").select("id,rrule,all_day").eq("id", o.item_id).single();
+  const item = itemData as { id: string; rrule: string | null; all_day: boolean } | null;
+  if (!item) return fail();
+
+  const tz = ctx.profile.timezone;
+  const [y, m, d] = parsed.data.split("-").map(Number);
+  const w = instantToWall(new Date(o.due_at), tz);
+  let allDay = item.all_day;
+  let due = allDay ? wallToInstant({ y, m, d, h: 23, mi: 59 }, tz) : wallToInstant({ y, m, d, h: w.h, mi: w.mi }, tz);
+  if (due.getTime() < Date.now()) {
+    due = wallToInstant({ y, m, d, h: 23, mi: 59 }, tz);
+    allDay = true;
+  }
+  if (!item.rrule) {
+    const { error } = await ctx.supabase.from("items").update({ due_at: due.toISOString(), all_day: allDay }).eq("id", item.id);
+    if (error) return fail("item.error.save");
+    const { error: occError } = await ctx.supabase.rpc("sync_item_occurrences", { p_item_id: item.id, p_dues: [due.toISOString()] });
+    if (occError) return fail("item.error.times");
+  } else {
+    // Only this time of a repeating item moves.
+    const { error } = await ctx.supabase.from("occurrences").update({ due_at: due.toISOString(), snoozed_until: null }).eq("id", occId);
+    if (error) return fail("item.error.times");
+  }
+  await logEvent(ctx, item.id, "edited", "moved");
+  refresh();
+  return { ok: true };
+}
+
+/** "Delete" from a list: hides the item (and stops its reminders) so Undo can bring it straight back. */
+export async function archiveItem(itemId: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  if (!z.string().uuid().safeParse(itemId).success) return fail();
+  const { error } = await ctx.supabase.from("items").update({ status: "archived" }).eq("id", itemId);
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+export async function restoreItem(itemId: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  if (!z.string().uuid().safeParse(itemId).success) return fail();
+  const { error } = await ctx.supabase.from("items").update({ status: "open" }).eq("id", itemId).eq("status", "archived");
+  if (error) return fail();
+  refresh();
+  return { ok: true };
+}
+
+/** Remembers the order you dragged one day's reminders into (kept for a few days, then forgotten). */
+export async function saveDayOrder(day: string, ids: string[]): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  const parsed = z.object({ day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), ids: z.array(z.string().uuid()).max(100) }).safeParse({ day, ids });
+  if (!parsed.success) return fail();
+  const cutoff = new Date(Date.UTC(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)) - 3)).toISOString().slice(0, 10);
+  const kept = Object.fromEntries(Object.entries(ctx.profile.prefs?.day_order ?? {}).filter(([k]) => k >= cutoff));
+  const { error } = await ctx.supabase
+    .from("profiles")
+    .update({ prefs: { ...(ctx.profile.prefs ?? {}), day_order: { ...kept, [parsed.data.day]: parsed.data.ids } } })
+    .eq("user_id", ctx.userId);
+  if (error) return fail("settings.error.save");
   return { ok: true };
 }

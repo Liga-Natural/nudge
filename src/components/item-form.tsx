@@ -170,7 +170,7 @@ export function ItemForm({
   }
 
   const chip = (on: boolean) =>
-    `min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? "border-accent bg-accent-soft text-ink" : "border-line bg-white text-ink"}`;
+    `min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? "border-accent bg-accent-soft text-ink" : "border-line bg-card text-ink"}`;
 
   return (
     <>

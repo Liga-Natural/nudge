@@ -35,6 +35,8 @@ export default async function SchoolPage() {
           key={e.occId}
           entry={e}
           late={isLate}
+          nowMs={now.getTime()}
+          course={courses.find((c) => c.id === e.courseId) ?? null}
           timeLabel={dueLabel(e, now, tz, lang, t)}
           money={moneyLabel(e, lang)}
           spaceName={null}

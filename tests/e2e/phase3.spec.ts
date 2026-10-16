@@ -42,7 +42,7 @@ test.describe("Delivery log", () => {
       delivery_attempts: [
         { kind: "reminder", title: "Test nudge", status: "sent", error: null, created_at: "2026-10-15T03:03:20Z" },
         { kind: "test", title: "Test notification", status: "failed", error: "The push service refused our notification key (HTTP 403). Turn notifications off and on again in Settings.", http_status: 403, created_at: "2026-10-15T02:10:00Z" },
-        { kind: "reminder", title: "Late call", status: "held", error: "Quiet hours: held until 07:00 AM.", created_at: "2026-10-15T01:00:00Z" },
+        { kind: "reminder", title: "Late call", status: "held", error: "Held — quiet hours, will send at 7:00 AM", created_at: "2026-10-15T01:00:00Z" },
       ],
     });
     await page.goto("/settings");
@@ -53,7 +53,7 @@ test.describe("Delivery log", () => {
     await expect(first).toContainText("Delivered");
     await expect(first).toContainText("Wed, Oct 14 · 11:03 PM");
     await expect(page.getByRole("listitem").filter({ hasText: "Test notification" })).toContainText("HTTP 403");
-    await expect(page.getByRole("listitem").filter({ hasText: "Late call" })).toContainText("Quiet hours: held until 07:00 AM.");
+    await expect(page.getByRole("listitem").filter({ hasText: "Late call" })).toContainText("Held — quiet hours, will send at 7:00 AM");
     await noViolations(page, "delivery log");
   });
 

@@ -9,10 +9,10 @@ import { formatDay, formatTime } from "@/lib/time";
 type Attempt = { id: string; kind: string; title: string; status: string; error: string | null; http_status: number | null; created_at: string };
 
 const STATUS_STYLE: Record<string, string> = {
-  sent: "bg-[#e2f5e8] text-ink",
+  sent: "bg-ok-bg text-ink",
   failed: "bg-late-bg text-late-ink",
-  held: "bg-[#ffefd6] text-ink",
-  skipped: "bg-[#eee] text-ink",
+  held: "bg-warn-bg text-ink",
+  skipped: "bg-neutral-bg text-ink",
   no_phone: "bg-late-bg text-late-ink",
 };
 
