@@ -56,10 +56,12 @@ export default async function UpcomingPage({
 
   const renderRows = (list: typeof entries) => (
     <ul className="flex flex-col gap-2">
-      {list.map((e) => (
+      {list.map((e, i) => (
         <ItemRow
           key={e.occId}
           entry={e}
+          index={i}
+          nowMs={now.getTime()}
           timeLabel={dueLabel(e, now, tz, lang, t)}
           money={moneyLabel(e, lang)}
           spaceName={showSpaces ? (spaceName.get(e.spaceId ?? "") ?? null) : null}
@@ -72,7 +74,7 @@ export default async function UpcomingPage({
   );
 
   const tab = (on: boolean) =>
-    `flex min-h-[44px] flex-1 items-center justify-center rounded-full text-sm font-bold ${on ? "bg-white shadow-card" : "text-muted"}`;
+    `flex min-h-[44px] flex-1 items-center justify-center rounded-full text-sm font-bold ${on ? "bg-card shadow-card" : "text-muted"}`;
 
   // ---- strip: next 7 days with dots
   const strip = Array.from({ length: 7 }, (_, i) => addLocalDays(startOfLocalDay(now, tz), tz, i));
@@ -93,7 +95,7 @@ export default async function UpcomingPage({
             const n = countsByDay.get(key) ?? 0;
             const w = instantToWall(d, tz);
             return (
-              <li key={key} className="flex w-14 flex-none flex-col items-center gap-1 rounded-2xl bg-white py-2 shadow-card">
+              <li key={key} className="flex w-14 flex-none flex-col items-center gap-1 rounded-2xl bg-card py-2 shadow-card">
                 <span className="text-xs font-semibold uppercase text-muted">
                   {new Intl.DateTimeFormat(lang === "es" ? "es-US" : "en-US", { timeZone: tz, weekday: "short" }).format(d)}
                 </span>

@@ -21,7 +21,7 @@ export function Courses({ courses }: { courses: Course[] }) {
       {courses.length > 0 && (
         <ul className="flex flex-wrap gap-2">
           {courses.map((c) => (
-            <li key={c.id} className="flex items-center rounded-full border border-line pl-3" style={{ background: c.color }}>
+            <li key={c.id} className="flex items-center rounded-full border border-line pl-3" style={{ background: c.color, color: "#1c1917" }}>
               <span className="font-semibold">{c.name}</span>
               <button
                 className="flex h-11 w-11 items-center justify-center rounded-full"

@@ -20,7 +20,7 @@ export function SpaceChips({
   if (spaces.length < 2) return null;
   const chip = (on: boolean) =>
     `inline-flex min-h-[44px] flex-none items-center rounded-full border px-4 text-sm font-semibold ${
-      on ? "border-accent bg-accent-soft text-ink" : "border-line bg-white text-ink"
+      on ? "border-accent bg-accent-soft text-ink" : "border-line bg-card text-ink"
     }`;
   return (
     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label={label ?? allLabel}>

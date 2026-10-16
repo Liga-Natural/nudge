@@ -31,6 +31,8 @@ export const itemInputSchema = z.object({
   /** A small to-do list inside the reminder. */
   checklist: z.array(z.object({ text: z.string().trim().min(1).max(200), done: z.boolean().default(false) })).max(40).default([]),
   reminders: z.array(reminderSpecSchema).max(8),
+  /** Saved inside quiet hours and the person chose "Ring anyway". Left out = unchanged. */
+  ringAnyway: z.boolean().optional(),
 });
 export type ItemInput = z.infer<typeof itemInputSchema>;
 

@@ -400,7 +400,7 @@ export function TokensSection({ tokens, endpoint }: { tokens: TokenRow[]; endpoi
       {fresh && (
         <div role="status" className="rounded-2xl border-2 border-accent bg-accent-soft p-3">
           <p className="font-semibold">{t("tokens.once")}</p>
-          <code className="my-2 block break-all rounded-xl bg-white p-2 text-sm" data-testid="new-token">
+          <code className="my-2 block break-all rounded-xl bg-card p-2 text-sm" data-testid="new-token">
             {fresh}
           </code>
           <div className="flex gap-2">

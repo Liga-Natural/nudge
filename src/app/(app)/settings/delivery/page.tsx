@@ -9,12 +9,22 @@ import { formatDay, formatTime } from "@/lib/time";
 type Attempt = { id: string; kind: string; title: string; status: string; error: string | null; http_status: number | null; created_at: string };
 
 const STATUS_STYLE: Record<string, string> = {
-  sent: "bg-[#e2f5e8] text-ink",
+  sent: "bg-ok-bg text-ink",
   failed: "bg-late-bg text-late-ink",
-  held: "bg-[#ffefd6] text-ink",
-  skipped: "bg-[#eee] text-ink",
+  held: "bg-warn-bg text-ink",
+  skipped: "bg-neutral-bg text-ink",
   no_phone: "bg-late-bg text-late-ink",
 };
+
+/** The database writes the held reason in English; show it in the person's language with the release time. */
+function reasonText(a: Attempt, t: ReturnType<typeof makeT>): string | null {
+  if (!a.error) return null;
+  if (a.status === "held") {
+    const m = /(?:will send at|held until) (\d{1,2}:\d{2} [AP]M)/i.exec(a.error);
+    if (m) return t("delivery.heldReason", { time: m[1].replace(/^0/, "") });
+  }
+  return a.error;
+}
 
 export default async function DeliveryLogPage() {
   const ctx = await getReadyCtx();
@@ -90,7 +100,7 @@ export default async function DeliveryLogPage() {
                 <p className="text-sm text-muted">
                   {formatDay(new Date(a.created_at), tz, lang)} · {formatTime(new Date(a.created_at), tz, lang)} · {t(`delivery.kind.${a.kind}` as Key)}
                 </p>
-                {a.error && <p className="mt-1 text-sm">{a.error}</p>}
+                {reasonText(a, t) && <p className="mt-1 text-sm">{reasonText(a, t)}</p>}
               </li>
             ))}
           </ul>

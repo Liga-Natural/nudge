@@ -77,8 +77,12 @@ export function SettingsForm({
     });
   }
 
+  const savePrefs = (patch: NonNullable<ProfilePatch["prefs"]>) => save({ prefs: { ...(p.prefs ?? {}), ...patch } });
+  const [name, setName] = useState(profile.prefs?.first_name ?? "");
+  const openingOn = p.prefs?.opening_animation !== false;
+
   const chip = (on: boolean) =>
-    `min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? "border-accent bg-accent-soft" : "border-line bg-white"}`;
+    `min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? "border-accent bg-accent-soft" : "border-line bg-card"}`;
 
   return (
     <div className="flex flex-col gap-5">
@@ -102,6 +106,34 @@ export function SettingsForm({
             </button>
           ))}
         </div>
+        <div>
+          <label htmlFor="first-name" className="mb-1 block text-sm font-semibold text-muted">
+            {t("settings.firstName")}
+          </label>
+          <input
+            id="first-name"
+            className="field"
+            maxLength={40}
+            autoComplete="given-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => name.trim() !== (p.prefs?.first_name ?? "") && savePrefs({ first_name: name.trim() })}
+          />
+          <p className="mt-1 text-sm text-muted">{t("settings.firstName.hint")}</p>
+        </div>
+        <Toggle
+          label={t("settings.opening")}
+          body={t("settings.opening.body")}
+          on={openingOn}
+          onChange={(v) => {
+            try {
+              localStorage.setItem("nudge-opening", v ? "on" : "off");
+            } catch {
+              // the server copy still applies on the next start
+            }
+            savePrefs({ opening_animation: v });
+          }}
+        />
       </section>
 
       <section className="card flex flex-col gap-3 p-5" aria-labelledby="s-mode">

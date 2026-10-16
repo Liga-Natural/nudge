@@ -6,9 +6,10 @@ import { updateItem } from "@/app/actions";
 import { ItemForm, type FormValues } from "@/components/item-form";
 import { useT } from "@/lib/i18n/client";
 import type { ItemType } from "@/lib/parser";
+import type { QuietSettings } from "@/lib/quiet";
 import type { Course, Space } from "@/lib/types";
 
-export function EditItem({ initial, spaces, courses, showSpaces, itemId, enabledTypes }: { initial: FormValues; spaces: Space[]; courses: Course[]; showSpaces: boolean; itemId: string; enabledTypes: ItemType[] }) {
+export function EditItem({ initial, spaces, courses, showSpaces, itemId, enabledTypes, quiet }: { quiet?: QuietSettings; initial: FormValues; spaces: Space[]; courses: Course[]; showSpaces: boolean; itemId: string; enabledTypes: ItemType[] }) {
   const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -27,6 +28,7 @@ export function EditItem({ initial, spaces, courses, showSpaces, itemId, enabled
         spaces={spaces}
         courses={courses}
         enabledTypes={enabledTypes}
+        quiet={quiet}
         showSpaces={showSpaces}
         submitLabel={t("action.save")}
         onSubmit={async (values) => {

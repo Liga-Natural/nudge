@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import type { Result } from "@/app/actions";
 import { useI18n } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
-import type { ItemInput } from "@/lib/item-input";
+import { dueInstant, type ItemInput } from "@/lib/item-input";
+import { findQuietClash, type QuietSettings } from "@/lib/quiet";
+import { formatTime } from "@/lib/time";
+import { Sheet } from "@/components/sheet";
 import type { ItemType } from "@/lib/parser";
 import { describeReminder } from "@/lib/reminder-labels";
 import { describeRule, parseRule, ruleToString } from "@/lib/recurrence";
@@ -42,6 +45,8 @@ export function ItemForm({
   warnings = [],
   onSubmit,
   onCancel,
+  quiet,
+  isNew = false,
 }: {
   initial: FormValues;
   spaces: Space[];
@@ -53,8 +58,12 @@ export function ItemForm({
   warnings?: string[];
   onSubmit: (values: ItemInput) => Promise<Result<object>>;
   onCancel?: () => void;
+  /** Quiet-hours settings, so saving a reminder that would be held can ask first. */
+  quiet?: QuietSettings;
+  isNew?: boolean;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, tz } = useI18n();
+  const [quietAsk, setQuietAsk] = useState<{ release: Date } | null>(null);
   const [title, setTitle] = useState(initial.title);
   const [type, setType] = useState<ItemType>(initial.type);
   const [date, setDate] = useState(initial.dueLocal?.slice(0, 10) ?? "");
@@ -119,8 +128,8 @@ export function ItemForm({
     setNewCheck("");
   }
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function submit(e?: React.FormEvent, ringAnyway?: boolean) {
+    e?.preventDefault();
     setError("");
     if (!title.trim()) return setError(t("add.titleRequired"));
     const cents = amount.trim() === "" ? null : Math.round(parseFloat(amount.replace(/,/g, "")) * 100);
@@ -129,8 +138,18 @@ export function ItemForm({
     // A half-typed checklist line is not lost.
     const pendingCheck = newCheck.trim();
     const finalChecklist = pendingCheck ? [...checklist, { text: pendingCheck.slice(0, 200), done: false }] : checklist;
+    const dueAt = dueInstant(dueLocal, allDay, tz);
+    const timingChanged = isNew || dueLocal !== (initial.dueLocal ?? null) || JSON.stringify(reminders) !== JSON.stringify(initial.reminders);
+    if (ringAnyway === undefined && quiet && date && timingChanged && initial.ringAnyway !== true) {
+      const clash = findQuietClash({ dueAt, reminders, tz, quiet, now: new Date() });
+      if (clash) {
+        setQuietAsk({ release: clash.releaseAt });
+        return;
+      }
+    }
     start(async () => {
       const r = await onSubmit({
+        ringAnyway: ringAnyway ?? initial.ringAnyway,
         title: title.trim(),
         type,
         dueLocal,
@@ -151,10 +170,11 @@ export function ItemForm({
   }
 
   const chip = (on: boolean) =>
-    `min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? "border-accent bg-accent-soft text-ink" : "border-line bg-white text-ink"}`;
+    `min-h-[44px] rounded-full border px-4 text-sm font-semibold ${on ? "border-accent bg-accent-soft text-ink" : "border-line bg-card text-ink"}`;
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-5">
+    <>
+    <form onSubmit={(e) => submit(e)} className="flex flex-col gap-5">
       {warnings.map((w) => (
         <p key={w} role="note" className="rounded-2xl bg-pkg p-3 text-sm text-ink">
           {t(`add.warn.${w}` as Key)}
@@ -434,6 +454,40 @@ export function ItemForm({
         </button>
       )}
     </form>
+    <Sheet open={!!quietAsk} onClose={() => setQuietAsk(null)} title={t("quiet.ask.title")}>
+      {quiet && quietAsk && (
+        <p className="mb-4 text-muted">
+          {t("quiet.ask.body", {
+            from: quiet.start.slice(0, 5),
+            to: quiet.end.slice(0, 5),
+            time: formatTime(quietAsk.release, tz, lang),
+          })}
+        </p>
+      )}
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => {
+            setQuietAsk(null);
+            submit(undefined, true);
+          }}
+        >
+          🔔 {t("quiet.ask.ring")}
+        </button>
+        <button
+          type="button"
+          className="btn-quiet w-full"
+          onClick={() => {
+            setQuietAsk(null);
+            submit(undefined, false);
+          }}
+        >
+          🤫 {t("quiet.ask.keep")}
+        </button>
+      </div>
+    </Sheet>
+    </>
   );
 }
 

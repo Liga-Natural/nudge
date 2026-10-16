@@ -1,0 +1,81 @@
+// Phase 4 words (English). Spanish lives in es-p4.ts and must have exactly the same keys.
+export const enP4 = {
+  "action.undo": "Undo",
+
+  // quiet hours
+  "quiet.ask.title": "This is during quiet hours — ring anyway?",
+  "quiet.ask.body": "Your quiet hours are {from}–{to}. If you keep quiet, this reminder waits and sends at {time}.",
+  "quiet.ask.ring": "Ring anyway",
+  "quiet.ask.keep": "Keep quiet",
+  "delivery.heldReason": "Held — quiet hours, will send at {time}",
+  "onb.quiet.title.pre": "Your",
+  "onb.quiet.title.accent": "quiet",
+  "onb.quiet.title.post": "hours",
+  "onb.quiet.subtitle": "When should Nudge stay silent? Anything that comes up in this window waits until it ends.",
+  "onb.quiet.night": "Overnight (10 PM–7 AM)",
+  "onb.quiet.late": "Late night (11 PM–8 AM)",
+  "onb.quiet.custom": "Pick my own",
+  "onb.quiet.off": "No quiet hours",
+  "onb.quiet.note": "If you save a reminder that lands in quiet hours, Nudge asks first. You can change this in Settings.",
+
+  // school
+  "school.late": "Late",
+
+  // opening
+  "opening.syncing": "Still syncing…",
+  "offline.badge": "Offline · updated {time}",
+  "settings.opening": "Opening animation",
+  "settings.opening.body": "A short animation when the app starts. Turn it off for an instant start.",
+  "settings.firstName": "What should we call you?",
+  "settings.firstName.hint": "Shown in your greeting on Today.",
+  "onb.name": "What should we call you?",
+  "onb.name.placeholder": "First name (optional)",
+
+  // today hero
+  "hero.label": "Today at a glance",
+  "hero.ringLabel": "{done} of {total} done today",
+  "hero.done": "done",
+  "hero.allDone": "all done",
+  "hero.nextUp": "Next up",
+  "hero.in": "in {time}",
+  "hero.now": "now",
+  "hero.nothingNext": "Nothing coming up. Enjoy it.",
+  "hero.strip": "Choose a day range",
+  "view.today": "Today",
+  "view.tomorrow": "Tomorrow",
+  "view.week": "This week",
+  "view.nothing": "Nothing here.",
+  "today.due.one": "thing due today",
+  "today.due.many": "things due today",
+  "period.anytime": "Anytime",
+  "period.morning": "Morning",
+  "period.afternoon": "Afternoon",
+  "period.evening": "Evening",
+  "now.label": "Now",
+
+  // late + reschedule
+  "late.doToday": "Do today",
+  "late.reschedule": "Reschedule",
+  "reschedule.title": "Move to…",
+  "reschedule.tomorrow": "Tomorrow",
+  "reschedule.in3": "In 3 days",
+  "reschedule.nextWeek": "Next week",
+  "reschedule.pick": "Pick a day",
+  "reschedule.go": "Move",
+  "reschedule.today": "today",
+
+  // rows
+  "row.reorder": "Drag to reorder",
+  "row.moveUp": "Move up",
+  "row.moveDown": "Move down",
+  "row.open": "Open",
+  "toast.done": "Done: {title}",
+  "toast.turnedIn": "Turned in: {title}",
+  "toast.snoozed": "Snoozed: {title}",
+  "toast.deleted": "Deleted: {title}",
+  "toast.skipped": "Skipped: {title}",
+  "toast.moved": "{title} moved to {day}",
+  "toast.paid": "Paid: {title}",
+  "hw.turnedIn": "Mark turned in",
+  "habits.week": "This week",
+} as const;

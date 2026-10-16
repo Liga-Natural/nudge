@@ -1,8 +1,10 @@
 import { enP3 } from "./en-p3";
+import { enP4 } from "./en-p4";
 
 // All the words in the app. Spanish lives in es.ts and must have exactly the same keys.
 export const en = {
   ...enP3,
+  ...enP4,
   // shared
   "nav.today": "Today",
   "nav.upcoming": "Upcoming",
@@ -242,9 +244,9 @@ export const en = {
   "onb.nudge.before": "A little before",
   "onb.nudge.important": "Only important stuff",
   "onb.times.title.pre": "Your",
-  "onb.times.title.accent": "quiet",
-  "onb.times.title.post": "hours",
-  "onb.times.subtitle": "We'll hold non-urgent nudges until the morning.",
+  "onb.times.title.accent": "morning",
+  "onb.times.title.post": "summary",
+  "onb.times.subtitle": "One short note each morning with what is due.",
   "onb.times.morning": "Morning summary at",
   "onb.times.quietFrom": "Quiet from",
   "onb.times.quietTo": "until",

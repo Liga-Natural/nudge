@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { resetApp, signIn, startReady } from "./helpers";
 
 async function checkA11y(page: Page, name: string) {
+  await expect(page).toHaveTitle(/.+/); // the title is streamed in; give a slow machine a moment
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   const summary = results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`);
   expect(summary, `${name} has accessibility problems`).toEqual([]);
@@ -26,6 +27,8 @@ test.describe("accessibility (axe)", () => {
     await page.getByRole("button", { name: /^next/i }).click();
     await checkA11y(page, "onboarding times");
     await page.getByRole("button", { name: /^next/i }).click();
+    await checkA11y(page, "onboarding quiet hours");
+    await page.getByRole("button", { name: /^next/i }).click();
     await checkA11y(page, "onboarding notifications");
     await page.getByRole("button", { name: /skip for now/i }).click();
     await checkA11y(page, "onboarding mode");
@@ -44,6 +47,7 @@ test.describe("accessibility (axe)", () => {
     await page.getByRole("button", { name: /check it/i }).click();
     await checkA11y(page, "add confirm");
     await page.goto("/");
+    await page.getByRole("button", { name: /this week/i }).click();
     await page.getByRole("link", { name: /dentist visit/i }).click();
     await checkA11y(page, "item");
     await page.goto("/settings");

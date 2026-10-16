@@ -18,7 +18,7 @@ export default async function AddPage() {
         <AccentTitle pre={t("add.title.pre")} accent={t("add.title.accent")} post={t("add.title.post")} />
         <p className="text-muted">{t("add.subtitle")}</p>
       </header>
-      <AddFlow spaces={spaces} courses={courses} defaultSpaceId={defaultSpace?.id ?? null} showSpaces={ctx.profile.mode === "full"} enabledTypes={enabledItemTypes(ctx.profile.features)} />
+      <AddFlow spaces={spaces} courses={courses} defaultSpaceId={defaultSpace?.id ?? null} showSpaces={ctx.profile.mode === "full"} enabledTypes={enabledItemTypes(ctx.profile.features)} quiet={{ start: ctx.profile.quiet_start, end: ctx.profile.quiet_end, urgentOverride: ctx.profile.urgent_override }} />
     </main>
   );
 }

@@ -20,6 +20,7 @@ function watch(page: Page) {
 }
 
 async function noViolations(page: Page, name: string) {
+  await expect(page).toHaveTitle(/.+/); // the title is streamed in; give a slow machine a moment
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`), name).toEqual([]);
 }
@@ -42,7 +43,7 @@ test.describe("Delivery log", () => {
       delivery_attempts: [
         { kind: "reminder", title: "Test nudge", status: "sent", error: null, created_at: "2026-10-15T03:03:20Z" },
         { kind: "test", title: "Test notification", status: "failed", error: "The push service refused our notification key (HTTP 403). Turn notifications off and on again in Settings.", http_status: 403, created_at: "2026-10-15T02:10:00Z" },
-        { kind: "reminder", title: "Late call", status: "held", error: "Quiet hours: held until 07:00 AM.", created_at: "2026-10-15T01:00:00Z" },
+        { kind: "reminder", title: "Late call", status: "held", error: "Held — quiet hours, will send at 7:00 AM", created_at: "2026-10-15T01:00:00Z" },
       ],
     });
     await page.goto("/settings");
@@ -53,7 +54,7 @@ test.describe("Delivery log", () => {
     await expect(first).toContainText("Delivered");
     await expect(first).toContainText("Wed, Oct 14 · 11:03 PM");
     await expect(page.getByRole("listitem").filter({ hasText: "Test notification" })).toContainText("HTTP 403");
-    await expect(page.getByRole("listitem").filter({ hasText: "Late call" })).toContainText("Quiet hours: held until 07:00 AM.");
+    await expect(page.getByRole("listitem").filter({ hasText: "Late call" })).toContainText("Held — quiet hours, will send at 7:00 AM");
     await noViolations(page, "delivery log");
   });
 
@@ -140,6 +141,7 @@ test.describe("everything new is off until switched on", () => {
     await page.getByRole("radio", { name: /morning summary/i }).click();
     await page.getByRole("button", { name: /^next/i }).click();
     await page.getByRole("button", { name: /^next/i }).click();
+    await page.getByRole("button", { name: /^next/i }).click();
     await page.getByRole("button", { name: /skip for now/i }).click();
     await page.getByRole("button", { name: /finish/i }).click();
     await page.getByRole("button", { name: /^skip$/i }).click();
@@ -190,6 +192,7 @@ test.describe("smart quick-add", () => {
     await page.getByRole("button", { name: /check it/i }).click();
     await expect(page.getByLabel("Where")).toHaveValue("Dr Lopez office");
     await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: /this week/i }).click(); // Friday is usually not today
     await page.getByRole("link", { name: /dentist/i }).first().click();
     await expect(page.getByText("Dr Lopez office")).toBeVisible();
   });
@@ -299,6 +302,7 @@ test.describe("importing school work", () => {
     await page.getByLabel("Score").fill("45");
     await page.getByLabel("Out of").fill("50");
     await page.getByRole("button", { name: "Add grade" }).click();
+    await expect(page.getByText("Essay", { exact: true })).toBeVisible(); // let the first one land before typing the next
     await page.getByLabel("What was it?").fill("Quiz");
     await page.getByLabel("Score").fill("5");
     await page.getByLabel("Out of").fill("10");

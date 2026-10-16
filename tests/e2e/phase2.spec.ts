@@ -17,6 +17,7 @@ function items(): SeedItem[] {
 }
 
 async function noViolations(page: Page, name: string) {
+  await expect(page).toHaveTitle(/.+/); // the title is streamed in; give a slow machine a moment
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`), name).toEqual([]);
 }

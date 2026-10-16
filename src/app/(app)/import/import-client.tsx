@@ -18,9 +18,9 @@ const EXAMPLE = JSON.stringify(
 );
 
 const CHIP: Record<ImportStatus, string> = {
-  new: "bg-[#e2f5e8]",
-  updated: "bg-[#ffefd6]",
-  unchanged: "bg-[#eee]",
+  new: "bg-ok-bg",
+  updated: "bg-warn-bg",
+  unchanged: "bg-neutral-bg",
 };
 
 /** Paste JSON, see what would change, confirm. A browser agent can use this page too: no token needed. */

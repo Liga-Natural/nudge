@@ -12,6 +12,8 @@ export async function POST(request: Request) {
     onboarded?: boolean;
     language?: "en" | "es";
     features?: Record<string, boolean>;
+    /** Overrides for the profile row, e.g. { urgent_override: false }. */
+    profile?: Record<string, unknown>;
     items?: { id?: string; occId?: string; title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number; autopay?: boolean; rrule?: string; location?: string; subtype?: string; courseId?: string; occurrences?: { dueAt: string; status?: string }[] }[];
     /** Extra rows for other tables, e.g. { courses: [...], grades: [...] }. */
     extra?: Record<string, Record<string, unknown>[]>;
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
     s.tables.profiles.push({
       user_id: s.userId, timezone: "America/New_York", language: body.language ?? "en", mode: "full", track_types: [],
       nudge_style: "on_time", morning_enabled: true, morning_time: "08:00:00", quiet_start: "22:00:00", quiet_end: "07:00:00",
-      urgent_override: true, type_switches: {}, features: body.features ?? {}, prefs: {}, onboarded: body.onboarded ?? true,
+      urgent_override: true, type_switches: {}, features: body.features ?? {}, prefs: {}, onboarded: body.onboarded ?? true, ...(body.profile ?? {}),
     });
     s.tables.spaces.push({ id: spaceId, user_id: s.userId, name: "Personal", emoji: "🏠", is_default: true, notifications_enabled: true, sort_order: 0 });
     for (const it of body.items ?? []) {

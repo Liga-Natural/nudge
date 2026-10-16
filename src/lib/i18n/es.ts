@@ -1,8 +1,10 @@
 import type { Key } from "./en";
 import { esP3 } from "./es-p3";
+import { esP4 } from "./es-p4";
 
 export const es: Record<Key, string> = {
   ...esP3,
+  ...esP4,
   // shared
   "nav.today": "Hoy",
   "nav.upcoming": "Próximos",
@@ -241,10 +243,10 @@ export const es: Record<Key, string> = {
   "onb.nudge.on_time": "Justo a tiempo",
   "onb.nudge.before": "Un poco antes",
   "onb.nudge.important": "Solo lo importante",
-  "onb.times.title.pre": "Tus horas de",
-  "onb.times.title.accent": "silencio",
+  "onb.times.title.pre": "Tu resumen de la",
+  "onb.times.title.accent": "mañana",
   "onb.times.title.post": "",
-  "onb.times.subtitle": "Guardaremos los avisos no urgentes hasta la mañana.",
+  "onb.times.subtitle": "Una nota corta cada mañana con lo que vence.",
   "onb.times.morning": "Resumen de la mañana a las",
   "onb.times.quietFrom": "Silencio desde las",
   "onb.times.quietTo": "hasta las",

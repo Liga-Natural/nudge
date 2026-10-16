@@ -71,3 +71,29 @@ describe("school", () => {
     expect(upcomingExams([hw("a", null, "Math quiz"), hw("b", null, "Read ch. 4")]).map((x) => x.occId)).toEqual(["a"]);
   });
 });
+
+describe("school page sections (bug: the same past item showed twice)", () => {
+  const nowT = new Date("2026-10-15T16:00:00Z");
+  const item = (occId: string, title: string, dueAt: string, courseId: string | null = null) => e(occId, new Date(dueAt), { type: "homework", courseId, title });
+  it("puts a past exam in Late only, never under Upcoming exams or Assignments", async () => {
+    const { splitSchool } = await import("@/lib/school");
+    const r = splitSchool([item("past-exam", "Math exam", "2026-10-14T12:00:00Z")], [], nowT);
+    expect(r.late.map((x) => x.occId)).toEqual(["past-exam"]);
+    expect(r.exams).toEqual([]);
+    expect(r.groups).toEqual([]);
+  });
+  it("gives every item exactly one home", async () => {
+    const { splitSchool } = await import("@/lib/school");
+    const all = [
+      item("late-hw", "Read ch. 3", "2026-10-13T12:00:00Z"),
+      item("late-quiz", "Quiz 2", "2026-10-14T12:00:00Z"),
+      item("exam", "Final exam", "2026-10-20T12:00:00Z"),
+      item("hw", "Worksheet", "2026-10-16T12:00:00Z"),
+    ];
+    const r = splitSchool(all, [], nowT);
+    const placed = [...r.late, ...r.exams, ...r.groups.flatMap((g) => g.entries)].map((x) => x.occId).sort();
+    expect(placed).toEqual(["exam", "hw", "late-hw", "late-quiz"]);
+    expect(r.exams.map((x) => x.occId)).toEqual(["exam"]);
+    expect(r.late.map((x) => x.occId)).toEqual(["late-hw", "late-quiz"]);
+  });
+});

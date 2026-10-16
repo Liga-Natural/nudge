@@ -5,11 +5,21 @@ import { useEffect, useState } from "react";
 import { updateProfile } from "@/app/actions";
 import { AccentTitle } from "@/components/accent-title";
 import { NotificationsPanel } from "@/components/notifications-panel";
+import { NudgeMark } from "@/components/ui/nudge-mark";
 import { APP_NAME } from "@/lib/config";
 import { makeT, type Key, type Lang } from "@/lib/i18n";
 
-type Step = "welcome" | "track" | "nudge" | "times" | "notif" | "mode" | "ring" | "done";
-const FLOW: Step[] = ["track", "nudge", "times", "notif", "mode"];
+type Step = "welcome" | "track" | "nudge" | "times" | "quiet" | "notif" | "mode" | "ring" | "done";
+const FLOW: Step[] = ["track", "nudge", "times", "quiet", "notif", "mode"];
+
+// Quiet hours are a choice of their own, so nobody finds out about them by accident.
+type QuietChoice = "night" | "late" | "custom" | "off";
+const QUIET: { id: QuietChoice; emoji: string; label: Key; from: string; to: string }[] = [
+  { id: "night", emoji: "🌙", label: "onb.quiet.night", from: "22:00", to: "07:00" },
+  { id: "late", emoji: "🛌", label: "onb.quiet.late", from: "23:00", to: "08:00" },
+  { id: "custom", emoji: "🎛️", label: "onb.quiet.custom", from: "22:00", to: "07:00" },
+  { id: "off", emoji: "🔔", label: "onb.quiet.off", from: "00:00", to: "00:00" },
+];
 
 type TrackId = "homework" | "payments" | "packages" | "tasks" | "work" | "habits" | "birthdays" | "renewals";
 const TRACK: { id: TrackId; emoji: string; label: Key }[] = [
@@ -41,8 +51,11 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
   const [morning, setMorning] = useState("08:00");
   const [quietFrom, setQuietFrom] = useState("22:00");
   const [quietTo, setQuietTo] = useState("07:00");
+  const [quietChoice, setQuietChoice] = useState<QuietChoice>("night");
+  const [urgent, setUrgent] = useState(true);
   const [mode, setMode] = useState<"simple" | "full">("full");
   const [error, setError] = useState("");
+  const [firstName, setFirstName] = useState("");
 
   const index = FLOW.indexOf(step);
   const next = () => setStep(FLOW[index + 1] ?? "ring");
@@ -60,6 +73,8 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
       morning_time: morning,
       quiet_start: quietFrom,
       quiet_end: quietTo,
+      urgent_override: urgent,
+      ...(firstName.trim() ? { prefs: { first_name: firstName.trim() } } : {}),
       mode,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       onboarded: true,
@@ -100,7 +115,7 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
               <button
                 key={l}
                 aria-pressed={lang === l}
-                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${lang === l ? "border-accent bg-accent-soft" : "border-line bg-white"}`}
+                className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${lang === l ? "border-accent bg-accent-soft" : "border-line bg-card"}`}
                 onClick={() => setLang(l)}
               >
                 {l === "en" ? "English" : "Español"}
@@ -108,11 +123,15 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
             ))}
           </div>
           <div className="slide-in flex flex-1 flex-col justify-center gap-4">
-            <span aria-hidden className="text-6xl">
-              🔔
-            </span>
+            <NudgeMark size={72} id="ob" />
             <AccentTitle pre={t("onb.welcome.title.pre")} accent={APP_NAME} />
             <p className="text-lg text-muted">{t("onb.welcome.subtitle")}</p>
+            <div>
+              <label htmlFor="ob-name" className="mb-1 block text-sm font-semibold text-muted">
+                {t("onb.name")}
+              </label>
+              <input id="ob-name" className="field" maxLength={40} autoComplete="given-name" placeholder={t("onb.name.placeholder")} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+            </div>
           </div>
           <button className="btn-primary" onClick={() => setStep("track")}>
             {t("onb.start")} →
@@ -140,7 +159,6 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                     {o.emoji}
                   </span>
                   {t(o.label)}
-                  {on && <span aria-hidden className="absolute right-3 top-3 text-accent-text">✓</span>}
                 </button>
               );
             })}
@@ -170,7 +188,6 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                   {o.emoji}
                 </span>
                 {t(o.label)}
-                {style === o.id && <span aria-hidden className="absolute right-3 top-3 text-accent-text">✓</span>}
               </button>
             ))}
           </div>
@@ -199,7 +216,45 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
               </label>
               <input id="ob-morning" type="time" className="field" value={morning} onChange={(e) => e.target.value && setMorning(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+          </div>
+          <div className="mt-auto flex flex-col gap-3">
+            <button className="btn-primary" onClick={next}>
+              {t("action.next")} →
+            </button>
+            <button className="btn-quiet" onClick={back}>
+              {t("action.back")}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {step === "quiet" && (
+        <section className="slide-in flex flex-1 flex-col gap-5" aria-labelledby="ob-h">
+          {pill}
+          <div id="ob-h">
+            <AccentTitle pre={t("onb.quiet.title.pre")} accent={t("onb.quiet.title.accent")} post={t("onb.quiet.title.post")} />
+            <p className="mt-2 text-muted">{t("onb.quiet.subtitle")}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-labelledby="ob-h">
+            {QUIET.map((o) => (
+              <button
+                key={o.id}
+                {...tile(quietChoice === o.id, "radio")}
+                onClick={() => {
+                  setQuietChoice(o.id);
+                  setQuietFrom(o.from);
+                  setQuietTo(o.to);
+                }}
+              >
+                <span aria-hidden className="text-4xl">
+                  {o.emoji}
+                </span>
+                {t(o.label)}
+              </button>
+            ))}
+          </div>
+          {quietChoice === "custom" && (
+            <div className="card grid grid-cols-2 gap-3 p-5">
               <div>
                 <label htmlFor="ob-qf" className="mb-1 block text-sm font-semibold text-muted">
                   {t("onb.times.quietFrom")}
@@ -213,7 +268,17 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                 <input id="ob-qt" type="time" className="field" value={quietTo} onChange={(e) => e.target.value && setQuietTo(e.target.value)} />
               </div>
             </div>
-          </div>
+          )}
+          {quietChoice !== "off" && (
+            <label className="card flex items-start gap-3 p-4">
+              <input type="checkbox" className="mt-1 h-5 w-5 accent-[#e8590c]" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
+              <span>
+                <span className="block font-semibold">{t("settings.quiet.urgent")}</span>
+                <span className="text-sm text-muted">{t("settings.quiet.urgent.body")}</span>
+              </span>
+            </label>
+          )}
+          <p className="text-sm text-muted">{t("onb.quiet.note")}</p>
           <div className="mt-auto flex flex-col gap-3">
             <button className="btn-primary" onClick={next}>
               {t("action.next")} →
@@ -261,7 +326,6 @@ export function Onboarding({ startLang }: { startLang: Lang }) {
                 </span>
                 {t(`settings.mode.${m}`)}
                 <span className="text-xs font-normal text-muted">{t(`settings.mode.${m}.body` as Key)}</span>
-                {mode === m && <span aria-hidden className="absolute right-3 top-3 text-accent-text">✓</span>}
               </button>
             ))}
           </div>
