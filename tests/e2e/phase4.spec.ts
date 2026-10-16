@@ -9,6 +9,7 @@ const soon = (minutes = 3) => new Date(Date.now() + minutes * 60_000).toISOStrin
 const row = (page: Page, title: string) => page.getByTestId("item-row").filter({ hasText: title });
 
 async function noViolations(page: Page, name: string) {
+  await expect(page).toHaveTitle(/.+/); // the title is streamed in; give a slow machine a moment
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`), name).toEqual([]);
 }
