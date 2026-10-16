@@ -78,7 +78,7 @@ export function ItemRow({
   const [error, setError] = useState("");
   const [justSnoozed, setJustSnoozed] = useState(false);
   const [, start] = useTransition();
-  const gesture = useRef({ x: 0, y: 0, active: false, down: false, long: false, crossed: false });
+  const gesture = useRef({ x: 0, y: 0, dx: 0, active: false, down: false, long: false, crossed: false });
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragged = useRef(false);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -229,6 +229,7 @@ export function ItemRow({
           g.active = false;
           g.long = false;
           g.crossed = false;
+          g.dx = 0;
           dragged.current = false;
           clearPress();
           pressTimer.current = setTimeout(() => {
@@ -257,11 +258,13 @@ export function ItemRow({
             g.crossed = true;
             buzz(10);
           } else if (g.crossed && Math.abs(next) < SWIPE_AT) g.crossed = false;
+          g.dx = next;
           setDx(next);
         }}
         onPointerUp={() => {
           clearPress();
-          const d = dx;
+          const d = g.dx; // the ref, not state: the last move may not have re-rendered yet
+          g.dx = 0;
           g.down = false;
           g.active = false;
           setDx(0);
@@ -310,7 +313,7 @@ export function ItemRow({
               <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
                 <span className={late ? "font-semibold text-late-ink" : ""}>{timeLabel}</span>
                 {isHomework && course && (
-                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-ink" style={{ background: course.color }}>
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-ink" style={{ background: course.color, color: "#1c1917" }}>
                     <span aria-hidden className="h-2 w-2 rounded-full bg-ink/40" />
                     {course.name}
                   </span>
@@ -328,7 +331,7 @@ export function ItemRow({
             <span className="flex flex-none items-center gap-1 rounded-full bg-habit px-3 py-1 text-sm font-extrabold" aria-label={t("habits.streak", { n: habit.streak })}>
               <span aria-hidden className="flame">
                 🔥
-              </span>
+              </span>{" "}
               {habit.streak}
             </span>
           )}
@@ -358,7 +361,7 @@ export function ItemRow({
         </div>
 
         {habit && (
-          <div className="flex items-center gap-1.5 pl-14" aria-label={t("habits.week")}>
+          <div className="flex items-center gap-1.5 pl-14" role="img" aria-label={t("habits.week")}>
             {habit.dots.map((d) => (
               <span
                 key={d.key}
@@ -382,21 +385,21 @@ export function ItemRow({
         {(isHomework || isPayment || lateActions) && (
           <div className="flex flex-wrap gap-2 pl-14" data-nodrag>
             {isHomework && (
-              <button className="btn-quiet !min-h-[40px] text-sm" onClick={() => finish("turned-in")}>
+              <button className="btn-quiet text-sm" onClick={() => finish("turned-in")}>
                 📤 {t("hw.turnedIn")}
               </button>
             )}
             {isPayment && (
-              <button className="btn-quiet !min-h-[40px] text-sm" onClick={() => setPaidOpen(true)}>
+              <button className="btn-quiet text-sm" onClick={() => setPaidOpen(true)}>
                 ✓ {t("payments.paid")}
               </button>
             )}
             {lateActions && (
               <>
-                <button className="btn-quiet !min-h-[40px] text-sm" onClick={() => move(todayKey(tz), t("reschedule.today"))}>
+                <button className="btn-quiet text-sm" onClick={() => move(todayKey(tz), t("reschedule.today"))}>
                   📌 {t("late.doToday")}
                 </button>
-                <button className="btn-quiet !min-h-[40px] text-sm" onClick={() => setMoveOpen(true)}>
+                <button className="btn-quiet text-sm" onClick={() => setMoveOpen(true)}>
                   📅 {t("late.reschedule")}
                 </button>
               </>

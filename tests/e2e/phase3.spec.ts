@@ -140,6 +140,7 @@ test.describe("everything new is off until switched on", () => {
     await page.getByRole("radio", { name: /morning summary/i }).click();
     await page.getByRole("button", { name: /^next/i }).click();
     await page.getByRole("button", { name: /^next/i }).click();
+    await page.getByRole("button", { name: /^next/i }).click();
     await page.getByRole("button", { name: /skip for now/i }).click();
     await page.getByRole("button", { name: /finish/i }).click();
     await page.getByRole("button", { name: /^skip$/i }).click();

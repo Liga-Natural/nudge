@@ -72,7 +72,7 @@ test.describe("Item detail", () => {
     await expect(page.getByTestId("item-row").filter({ hasText: "Dentist cleaning" })).toHaveCount(0);
     // Deleting is undoable for a few seconds.
     await expect(page.getByRole("status").filter({ hasText: "Deleted: Dentist cleaning" })).toBeVisible();
-    await page.getByRole("button", { name: "Undo" }).click();
+    await page.getByRole("status").filter({ hasText: "Deleted: Dentist cleaning" }).getByRole("button", { name: "Undo" }).click();
     await page.getByRole("button", { name: /this week/i }).click();
     await expect(page.getByTestId("item-row").filter({ hasText: "Dentist cleaning" })).toBeVisible();
   });

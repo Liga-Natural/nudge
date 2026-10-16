@@ -8,8 +8,8 @@ test.describe("Today", () => {
     await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
     await expect(page.getByText("Next up")).toBeVisible();
     await expect(page.getByRole("img", { name: /of \d+ done today/ })).toBeVisible();
-    await expect(page.getByText("Old homework")).toBeVisible();
-    await expect(page.getByText("Pay phone bill")).toBeVisible();
+    await expect(page.getByTestId("item-row").filter({ hasText: "Old homework" })).toBeVisible();
+    await expect(page.getByTestId("item-row").filter({ hasText: "Pay phone bill" })).toBeVisible();
     await expect(page.getByText("$45.00")).toBeVisible();
     await expect(page.getByText(/1 thing due today/)).toBeVisible();
     await expect(page.getByText(/1 late/)).toBeVisible();
@@ -50,7 +50,7 @@ test.describe("Today", () => {
     await expect(page.getByRole("heading", { name: /^Late/ })).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole("heading", { name: /^Late/ })).toHaveCount(0);
-    await expect(page.getByText("Old homework")).toBeVisible();
+    await expect(page.getByTestId("item-row").filter({ hasText: "Old homework" })).toBeVisible();
   });
 
   test("Snooze asks for how long, then the item shows when it is back", async ({ page, request }) => {

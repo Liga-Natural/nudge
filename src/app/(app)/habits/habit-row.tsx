@@ -50,12 +50,12 @@ export function HabitRow({ itemId, title, occId, todayStatus, streak, dots = [] 
         <span className="flex flex-none items-center gap-1 rounded-full bg-habit px-3 py-1 text-sm font-extrabold" aria-label={t("habits.streak", { n: current })}>
           <span aria-hidden className={current > 0 ? "flame" : "grayscale"}>
             🔥
-          </span>
+          </span>{" "}
           {current}
         </span>
       </div>
       {dots.length > 0 && (
-        <div className="flex items-center gap-2" aria-label={t("habits.week")}>
+        <div className="flex items-center gap-2" role="img" aria-label={t("habits.week")}>
           {dots.map((d) => (
             <span
               key={d.key}

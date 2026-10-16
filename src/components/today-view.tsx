@@ -371,7 +371,7 @@ export function TodayView(props: TodayViewProps) {
 /** The "now" line sits between two rows of the timeline. */
 function NowLine({ label }: { label: string }) {
   return (
-    <li role="separator" aria-label={label} className="now-line list-none py-1" data-testid="now-line">
+    <li aria-hidden className="now-line list-none py-1" data-testid="now-line">
       {label}
     </li>
   );

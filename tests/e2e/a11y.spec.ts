@@ -46,6 +46,7 @@ test.describe("accessibility (axe)", () => {
     await page.getByRole("button", { name: /check it/i }).click();
     await checkA11y(page, "add confirm");
     await page.goto("/");
+    await page.getByRole("button", { name: /this week/i }).click();
     await page.getByRole("link", { name: /dentist visit/i }).click();
     await checkA11y(page, "item");
     await page.goto("/settings");

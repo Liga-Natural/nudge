@@ -20,7 +20,7 @@ export type SeedItem = {
 };
 export type Extra = Record<string, Record<string, unknown>[]>;
 
-export async function resetApp(request: APIRequestContext, body: { action?: "reset" | "seed" | "needs_sql"; onboarded?: boolean; language?: "en" | "es"; items?: SeedItem[]; features?: Record<string, boolean>; extra?: Extra } = {}) {
+export async function resetApp(request: APIRequestContext, body: { action?: "reset" | "seed" | "needs_sql"; onboarded?: boolean; language?: "en" | "es"; items?: SeedItem[]; features?: Record<string, boolean>; extra?: Extra; profile?: Record<string, unknown> } = {}) {
   const res = await request.post("/api/test", { data: { action: "reset", ...body } });
   expect(res.ok()).toBeTruthy();
 }

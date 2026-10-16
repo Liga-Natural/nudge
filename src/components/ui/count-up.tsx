@@ -27,8 +27,8 @@ export function CountUp({ value, ms = 700, className = "" }: { value: number; ms
   }, [value, ms, reduced]);
 
   return (
-    <span className={`tabular-nums ${className}`} aria-label={String(value)}>
-      <span aria-hidden>{reduced ? value : shown}</span>
+    <span className={`tabular-nums ${className}`} role="img" aria-label={String(value)}>
+      {reduced ? value : shown}
     </span>
   );
 }
