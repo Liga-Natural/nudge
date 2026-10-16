@@ -192,6 +192,8 @@ test.describe("confetti", () => {
   test.use({ reducedMotion: "no-preference" });
   test("finishing the last item of the day bursts confetti", async ({ page, request }) => {
     await startReady(page, request, [{ title: "Only one", type: "task", dueAt: soon(3) }]);
+    // the full opening animation runs here (Reduce Motion is off); wait for it to hand over
+    await expect(page.locator(".splash")).toHaveCount(0);
     await swipe(page, "Only one", 150);
     await expect(page.locator(".confetti-piece").first()).toBeAttached();
   });
