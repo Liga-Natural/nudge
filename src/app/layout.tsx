@@ -31,10 +31,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en" className="h-full antialiased" suppressHydrationWarning>
-      <head>
+      <body className="flex min-h-full flex-col">
+        {/* First thing in the body so it runs before the opening cover can paint. (Not in a hand-made <head>: that delays the page title.) */}
         <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: COLD_SCRIPT }} />
-      </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+        {children}
+      </body>
     </html>
   );
 }
