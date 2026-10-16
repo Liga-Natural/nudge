@@ -42,14 +42,14 @@ export function nowLineIndex(items: AgendaEntry[], now: Date): number {
 export type Views = { today: AgendaEntry[]; tomorrow: AgendaEntry[]; week: AgendaEntry[]; late: AgendaEntry[] };
 
 /**
- * Today = due today. Tomorrow = due tomorrow. This week = the next 7 days counting today (so it includes both).
+ * Today = due today. Tomorrow = due tomorrow. This week = everything up to 7 days ahead (so it includes both).
  * Late = open and from before today (a snoozed one sits in Today until its snooze ends).
  */
 export function splitViews(entries: AgendaEntry[], now: Date, tz: string): Views {
   const dayStart = startOfLocalDay(now, tz);
   const todayEnd = endOfLocalDay(now, tz);
   const tomorrowEnd = endOfLocalDay(addLocalDays(now, tz, 1), tz);
-  const weekEnd = endOfLocalDay(addLocalDays(now, tz, 6), tz);
+  const weekEnd = endOfLocalDay(addLocalDays(now, tz, 7), tz); // same reach Today always had: 7 days ahead
   const v: Views = { today: [], tomorrow: [], week: [], late: [] };
   for (const e of entries) {
     const due = new Date(e.dueAt);

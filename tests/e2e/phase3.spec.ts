@@ -300,6 +300,7 @@ test.describe("importing school work", () => {
     await page.getByLabel("Score").fill("45");
     await page.getByLabel("Out of").fill("50");
     await page.getByRole("button", { name: "Add grade" }).click();
+    await expect(page.getByText("Essay", { exact: true })).toBeVisible(); // let the first one land before typing the next
     await page.getByLabel("What was it?").fill("Quiz");
     await page.getByLabel("Score").fill("5");
     await page.getByLabel("Out of").fill("10");

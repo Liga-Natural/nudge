@@ -59,7 +59,7 @@ No new environment variables.
 
 **Part 2 — Today**
 * *Ring* = done today ÷ (done today + still open today). One extra, parallel database call counts today's done items; the page is still two rounds (profile, then everything else in parallel) plus one more only when habits are on the list.
-* *Strip counts:* Today = due today; Tomorrow = due tomorrow; This week = the next 7 days counting today.
+* *Strip counts:* Today = due today; Tomorrow = due tomorrow; This week = everything up to 7 days ahead (the same reach Today always had).
 * *Now line* sits before the first reminder still ahead, inside the current part of the day, and moves every 15 seconds. Items with no clock time are under **Anytime**.
 * *Do today* on an item whose time already passed today turns it into an all-day item for today (so it is not late again straight away). *Reschedule* keeps the time of day. For repeating items only that one time moves.
 
