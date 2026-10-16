@@ -191,6 +191,7 @@ test.describe("smart quick-add", () => {
     await page.getByRole("button", { name: /check it/i }).click();
     await expect(page.getByLabel("Where")).toHaveValue("Dr Lopez office");
     await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: /this week/i }).click(); // Friday is usually not today
     await page.getByRole("link", { name: /dentist/i }).first().click();
     await expect(page.getByText("Dr Lopez office")).toBeVisible();
   });
