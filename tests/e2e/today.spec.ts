@@ -65,6 +65,7 @@ test.describe("Today", () => {
     await startReady(page, request);
     const card = page.getByTestId("item-row").filter({ hasText: "Dentist visit" });
     await page.getByRole("button", { name: /this week/i }).click();
+    await card.locator(".card").first().evaluate((el) => el.scrollIntoView({ block: "center" }));
     const box = await card.locator(".card").first().boundingBox();
     expect(box).not.toBeNull();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);

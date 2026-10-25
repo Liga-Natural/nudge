@@ -65,12 +65,12 @@ const gradeSchema = z.object({
   term: z.enum(TERMS).nullish(),
 });
 
-export async function addGrade(raw: { courseId: string; title: string; score: number; outOf: number; letter?: string | null; points?: number | null; term?: string | null }): Promise<Result> {
+export async function addGrade(raw: { courseId: string; title: string; score: number; outOf: number; letter?: string | null; points?: number | null; term?: string | null }): Promise<Result<{ id: string }>> {
   const ctx = await ready();
   if (!ctx) return fail("setup");
   const parsed = gradeSchema.safeParse(raw);
   if (!parsed.success) return fail("grades.error.invalid");
-  const { error } = await ctx.supabase.from("grades").insert({
+  const { data, error } = await ctx.supabase.from("grades").insert({
     user_id: ctx.userId,
     course_id: parsed.data.courseId,
     title: parsed.data.title,
@@ -82,10 +82,10 @@ export async function addGrade(raw: { courseId: string; title: string; score: nu
     source: "manual",
     // Typed by you: no push to tell you what you already know.
     notified_at: new Date().toISOString(),
-  });
-  if (error) return fail("grades.error.save");
+  }).select("id").single();
+  if (error || !data) return fail("grades.error.save");
   refresh();
-  return { ok: true };
+  return { ok: true, id: (data as { id: string }).id };
 }
 
 export async function deleteGrade(id: string): Promise<Result> {

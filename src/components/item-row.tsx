@@ -58,7 +58,7 @@ export function ItemRow({
   index?: number;
   /** Server time in ms, for the live countdown on homework. */
   nowMs?: number;
-  course?: { name: string; color: string } | null;
+  course?: { name: string; color: string; emoji?: string } | null;
   habit?: HabitInfo | null;
   /** Finishing this one empties the day: celebrate. */
   isLastOfDay?: boolean;
@@ -315,7 +315,7 @@ export function ItemRow({
                 <span className={late ? "font-semibold text-late-ink" : ""}>{timeLabel}</span>
                 {isHomework && course && (
                   <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-ink" style={{ background: course.color, color: "#1c1917" }}>
-                    <span aria-hidden className="h-2 w-2 rounded-full bg-ink/40" />
+                    <span aria-hidden>{course.emoji ?? "•"}</span>
                     {course.name}
                   </span>
                 )}

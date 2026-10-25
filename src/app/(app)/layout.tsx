@@ -3,6 +3,7 @@ import { Opening } from "@/components/opening";
 import { ToastProvider } from "@/components/ui/toast";
 import { ViewTransitionProvider } from "@/components/ui/vt-link";
 import { BottomNav } from "@/components/bottom-nav";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { SetupNeeded } from "@/components/setup-needed";
 import { getCtx } from "@/lib/context";
 import { I18nProvider } from "@/lib/i18n/client";
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <ToastProvider>
           <Opening enabled={ctx.profile.prefs?.opening_animation !== false} />
           <AppFreshness />
+          <PullToRefresh />
           <div className="flex-1 pb-28">{children}</div>
           <BottomNav mode={ctx.profile.mode} />
         </ToastProvider>

@@ -336,7 +336,7 @@ test.describe("access tokens", () => {
 
 test.describe("tapping a notification", () => {
   test("opens the item with Done and Snooze on top", async ({ page, request }) => {
-    const items: SeedItem[] = [{ id: ITEM_ID, occId: OCC_ID, title: "Call coach", dueAt: new Date(Date.now() + 3600_000).toISOString() }];
+    const items: SeedItem[] = [{ id: ITEM_ID, occId: OCC_ID, title: "Call coach", dueAt: new Date(Date.now() + 120_000).toISOString() }];
     await startReady(page, request, items);
     await page.goto(`/item/${ITEM_ID}`);
     await expect(page.getByRole("region", { name: "Quick actions" })).toHaveCount(0);
@@ -353,7 +353,7 @@ test.describe("tapping a notification", () => {
   });
 
   test("a made-up occurrence number shows no buttons", async ({ page, request }) => {
-    const items: SeedItem[] = [{ id: ITEM_ID, occId: OCC_ID, title: "Call coach", dueAt: new Date(Date.now() + 3600_000).toISOString() }];
+    const items: SeedItem[] = [{ id: ITEM_ID, occId: OCC_ID, title: "Call coach", dueAt: new Date(Date.now() + 120_000).toISOString() }];
     await startReady(page, request, items);
     await page.goto(`/item/${ITEM_ID}?occ=00000000-0000-4000-8000-0000000000ff&quick=1`);
     await expect(page.getByRole("region", { name: "Quick actions" })).toHaveCount(0);

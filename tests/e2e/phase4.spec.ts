@@ -16,6 +16,8 @@ async function noViolations(page: Page, name: string) {
 
 /** A mouse drag across a card, the way a thumb swipes. */
 async function swipe(page: Page, title: string, dx: number) {
+  // The dashboard cards sit above the list, so bring the card into view before pointing at it.
+  await row(page, title).locator(".card").first().evaluate((el) => el.scrollIntoView({ block: "center" }));
   const box = await row(page, title).locator(".card").first().boundingBox();
   expect(box).not.toBeNull();
   const y = box!.y + box!.height / 2;

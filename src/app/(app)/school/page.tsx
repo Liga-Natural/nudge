@@ -1,6 +1,8 @@
 import { AccentTitle } from "@/components/accent-title";
 import { FeatureOff } from "@/components/feature-off";
+import { CourseBadge } from "@/components/course-badge";
 import { ItemRow } from "@/components/item-row";
+import { withLooks } from "@/lib/course-look";
 import { getReadyCtx } from "@/lib/context";
 import { featureOn } from "@/lib/features";
 import { makeT } from "@/lib/i18n";
@@ -25,7 +27,7 @@ export default async function SchoolPage() {
     loadAgenda(supabase, { from: addLocalDays(now, tz, -30), to: endOfLocalDay(addLocalDays(now, tz, 90), tz) }),
     supabase.from("courses").select("id,name,color").order("created_at"),
   ]);
-  const courses = (coursesRes.data ?? []) as Course[];
+  const courses = withLooks((coursesRes.data ?? []) as Course[], profile.prefs?.course_emoji);
   const { late, exams, groups } = splitSchool(entries, courses, now);
 
   const rows = (list: AgendaEntry[], isLate = false) => (
@@ -75,7 +77,7 @@ export default async function SchoolPage() {
         {groups.map((g) => (
           <div key={g.course?.id ?? "none"} className="flex flex-col gap-2">
             <h3 className="flex items-center gap-2 font-bold">
-              <span aria-hidden className="h-4 w-4 rounded-full border border-line" style={{ background: g.course?.color ?? "#ffffff" }} />
+              {g.course ? <CourseBadge emoji={(g.course as (typeof courses)[number]).emoji} color={g.course.color} size={28} /> : <CourseBadge emoji="📚" color="var(--hw)" size={28} />}
               {g.course?.name ?? t("school.noCourse")}
             </h3>
             {rows(g.entries)}

@@ -11,11 +11,17 @@ export function Sheet({
   onClose,
   title,
   children,
+  tall = false,
+  focusFirst = true,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  /** Fills most of the screen and scrolls inside (for the add sheet). */
+  tall?: boolean;
+  /** Moves focus to the first field on open. Off where that would pop the keyboard over the choices. */
+  focusFirst?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const startY = useRef<number | null>(null);
@@ -24,7 +30,7 @@ export function Sheet({
   useEffect(() => {
     if (!open) return;
     const before = document.activeElement as HTMLElement | null;
-    const first = panel.current?.querySelector<HTMLElement>("button, a[href], input, select, textarea");
+    const first = focusFirst ? panel.current?.querySelector<HTMLElement>("button, a[href], input, select, textarea") : panel.current;
     first?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -32,7 +38,7 @@ export function Sheet({
       window.removeEventListener("keydown", onKey);
       before?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, onClose, focusFirst]);
 
   if (!open) return null;
   return (
@@ -42,7 +48,8 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="sheet-panel w-full max-w-md rounded-t-[28px] bg-card p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
+        tabIndex={-1}
+        className={`sheet-panel w-full max-w-md rounded-t-[28px] bg-card p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] outline-none ${tall ? "max-h-[92dvh] overflow-y-auto overscroll-contain" : ""}`}
         style={dy ? { transform: `translateY(${dy}px)`, transition: "none" } : undefined}
         onClick={(e) => e.stopPropagation()}
       >

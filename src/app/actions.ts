@@ -4,13 +4,14 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCtx } from "@/lib/context";
+import { autoLook } from "@/lib/course-look";
 import { currentSchoolYear } from "@/lib/grades";
-import { dedupeReminders, dueInstant, itemInputSchema, toDueLocal, type ItemInput } from "@/lib/item-input";
+import { dedupeReminders, dueInstant, itemInputSchema, type ItemInput } from "@/lib/item-input";
 import { buildDues, tomorrowMorning, tonightAt } from "@/lib/occurrences";
-import { parseQuickAdd, type ItemType } from "@/lib/parser";
-import { TYPE_FEATURE } from "@/lib/types";
+import { parseQuickAdd } from "@/lib/parser";
+import { buildQuickInput, type QuickForm } from "@/lib/quick-add";
 import { featureOn } from "@/lib/features";
-import { defaultReminders, reminderToRow, type ReminderSpec } from "@/lib/reminders";
+import { reminderToRow, type ReminderSpec } from "@/lib/reminders";
 import { instantToWall, wallToInstant } from "@/lib/time";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encrypt } from "@/lib/crypto";
@@ -28,9 +29,7 @@ async function ready() {
 }
 
 // ------------------------------------------------------------------ quick add
-export type ParsedForm = Omit<ItemInput, "spaceId"> & {
-  warnings: ("past" | "no_date" | "package_later")[];
-};
+export type ParsedForm = QuickForm;
 
 export async function parseText(text: string): Promise<Result<{ parsed: ParsedForm }>> {
   const ctx = await ready();
@@ -41,35 +40,7 @@ export async function parseText(text: string): Promise<Result<{ parsed: ParsedFo
   const { data: courseData } = await ctx.supabase.from("courses").select("id,name");
   const courses = (courseData ?? []) as { id: string; name: string }[];
   const p = parseQuickAdd(clean.data, { now: new Date(), tz, lang: "auto", courses: courses.map((c) => c.name) });
-  // A kind of reminder you have not switched on is offered as the plain kind instead.
-  const wanted: ItemType = p.type === "package" ? "task" : p.type;
-  const gate = TYPE_FEATURE[wanted];
-  const type: ItemType = gate && !featureOn(ctx.profile, gate) ? (wanted === "birthday" ? "event" : "task") : wanted;
-  const subtype = type === "work" ? p.subtype : null;
-  const reminders: ReminderSpec[] = p.dueAt ? defaultReminders(type, p.allDay, ctx.profile.nudge_style, subtype) : [];
-  if (p.dueAt && p.reminderOffsetMinutes) reminders.push({ offsetMinutes: p.reminderOffsetMinutes });
-  const w = p.dueAt ? instantToWall(p.dueAt, tz) : null;
-  return {
-    ok: true,
-    parsed: {
-      title: p.title || clean.data,
-      type,
-      subtype,
-      location: p.location,
-      link: type === "homework" ? p.link : null,
-      where: null,
-      checklist: [],
-      dueLocal: p.dueAt && w ? toDueLocal(p.dueAt, p.allDay, w) : null,
-      allDay: p.allDay,
-      amountCents: p.amountCents,
-      rrule: type === "birthday" ? (p.rrule ?? "FREQ=YEARLY") : p.rrule,
-      notes: p.trackingNumber ? `Tracking number: ${p.trackingNumber}` : null,
-      autopay: false,
-      courseId: type === "homework" ? (courses.find((c) => c.name === p.courseName)?.id ?? null) : null,
-      reminders: dedupeReminders(reminders),
-      warnings: p.warnings,
-    },
-  };
+  return { ok: true, parsed: buildQuickInput(p, clean.data, { tz, nudgeStyle: ctx.profile.nudge_style, courses, isOn: (f) => featureOn(ctx.profile, f) }) };
 }
 
 // ------------------------------------------------------------------ items
@@ -446,18 +417,21 @@ const courseSchema = z.object({
   name: z.string().trim().min(1).max(60),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#e4edff"),
 });
-const COURSE_COLORS = ["#e4edff", "#e2f5e8", "#ffefd6", "#f1e7ff", "#ffe6ec", "#dff3f3"];
 
-export async function createCourse(name: string): Promise<Result> {
+export async function createCourse(name: string): Promise<Result<{ id: string }>> {
   const ctx = await ready();
   if (!ctx) return fail("setup");
-  const { count } = await ctx.supabase.from("courses").select("id", { count: "exact", head: true });
-  const parsed = courseSchema.safeParse({ name, color: COURSE_COLORS[(count ?? 0) % COURSE_COLORS.length] });
+  // The colour comes from the subject ("Italian" green, "Science" teal...) and can be changed later.
+  const parsed = courseSchema.safeParse({ name, color: autoLook(String(name)).color });
   if (!parsed.success) return fail("school.courseName");
-  const { error } = await ctx.supabase.from("courses").insert({ user_id: ctx.userId, ...parsed.data, school_year: currentSchoolYear(new Date(), ctx.profile.timezone) });
-  if (error) return fail();
+  const { data, error } = await ctx.supabase
+    .from("courses")
+    .insert({ user_id: ctx.userId, ...parsed.data, school_year: currentSchoolYear(new Date(), ctx.profile.timezone) })
+    .select("id")
+    .single();
+  if (error || !data) return fail();
   refresh();
-  return { ok: true };
+  return { ok: true, id: (data as { id: string }).id };
 }
 
 export async function deleteCourse(id: string): Promise<Result> {

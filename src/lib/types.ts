@@ -14,6 +14,10 @@ export type Prefs = {
   opening_animation?: boolean;
   /** Dragged order of one day's reminders: { "2026-10-15": [occurrence ids] }. */
   day_order?: Record<string, string[]>;
+  /** Today dashboard cards: the order and which are hidden. */
+  dash?: { order: string[]; hidden: string[] };
+  /** Each class's emoji, by class id (the colour lives on the class itself). */
+  course_emoji?: Record<string, string>;
 };
 
 export type Profile = {

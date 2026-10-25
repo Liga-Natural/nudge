@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { saveDayOrder } from "@/app/actions";
+import { markDone, reopenOccurrence, saveDayOrder } from "@/app/actions";
 import { groupByDay } from "@/lib/agenda";
 import { useI18n } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
 import { dueLabel, moneyLabel } from "@/lib/labels";
 import { formatDay, formatDayLong, formatTime, instantToWall, localDateKey } from "@/lib/time";
 import { countdownText, groupTimeline, nextUp, nowLineIndex, PERIODS, periodNow, splitViews, type DotState, type Period } from "@/lib/today";
+import type { CardId, DashPref, GradesCard, HabitCircle } from "@/lib/dashboard";
 import type { AgendaEntry } from "@/lib/types";
 import { useNow } from "@/lib/use-now";
+import { Bento, type BentoCourse, type JokerStatus } from "./bento";
 import { ItemRow, type HabitInfo, type RowChange } from "./item-row";
 import { CountUp } from "./ui/count-up";
 import { NudgeMark } from "./ui/nudge-mark";
@@ -17,7 +19,6 @@ import { ProgressRing } from "./ui/progress-ring";
 import { useToast } from "./ui/toast";
 
 type View = "today" | "tomorrow" | "week";
-type Course = { name: string; color: string };
 
 export type TodayViewProps = {
   entries: AgendaEntry[];
@@ -27,7 +28,9 @@ export type TodayViewProps = {
   firstName: string | null;
   spaceNames: Record<string, string>;
   showSpaces: boolean;
-  courses: Record<string, Course>;
+  courses: Record<string, BentoCourse>;
+  /** The dashboard cards under the hero. */
+  bento: { available: CardId[]; layout: DashPref | undefined; grades: GradesCard | null; habits: HabitCircle[]; joker: JokerStatus };
   habits: Record<string, { streak: number; dots: { key: string; state: DotState }[] }>;
   dayOrder: Record<string, string[]>;
   /** The shortcut row and space chips, drawn by the server. */
@@ -47,6 +50,9 @@ export function TodayView(props: TodayViewProps) {
   const [goneIds, setGoneIds] = useState<Set<string>>(new Set());
   const [order, setOrder] = useState(props.dayOrder);
   const todayKey = localDateKey(now, tz);
+
+  // Habit circles ticked here before the server has caught up.
+  const [habitDone, setHabitDone] = useState<Set<string>>(new Set());
 
   // A fresh server answer replaces what we guessed.
   useEffect(() => setOrder(props.dayOrder), [props.dayOrder]);
@@ -75,6 +81,41 @@ export function TodayView(props: TodayViewProps) {
     else if (c.kind === "undo-done") setDoneIds((s) => flip(s, false));
     else if (c.kind === "removed") setGoneIds((s) => flip(s, true));
     else setGoneIds((s) => flip(s, false));
+  }
+
+  const circles = useMemo(
+    () => props.bento.habits.map((h) => (habitDone.has(h.occId) && !h.done ? { ...h, done: true, streak: h.streak + 1 } : h)),
+    [props.bento.habits, habitDone],
+  );
+
+  function tapHabit(h: HabitCircle) {
+    const entry = props.entries.find((e) => e.occId === h.occId);
+    const flip = (add: boolean) =>
+      setHabitDone((s) => {
+        const n = new Set(s);
+        if (add) n.add(h.occId);
+        else n.delete(h.occId);
+        return n;
+      });
+    const undoHere = () => {
+      flip(false);
+      if (entry) onChange({ kind: "undo-done", entry });
+    };
+    flip(true);
+    if (entry) onChange({ kind: "done", entry });
+    markDone(h.occId).then((r) => {
+      if (!r.ok) {
+        undoHere();
+        return toast({ message: t("common.error") });
+      }
+      toast({
+        message: t("toast.done", { title: h.title }),
+        undo: async () => {
+          undoHere();
+          await reopenOccurrence(h.occId);
+        },
+      });
+    });
   }
 
   const hour = instantToWall(now, tz).h;
@@ -306,6 +347,18 @@ export function TodayView(props: TodayViewProps) {
           ))}
         </div>
       </section>
+
+      <Bento
+        entries={visible}
+        now={now}
+        courses={props.courses}
+        available={props.bento.available}
+        layout={props.bento.layout}
+        grades={props.bento.grades}
+        habits={circles}
+        joker={props.bento.joker}
+        onHabit={tapHabit}
+      />
 
       {view === "today" && views.late.length > 0 && (
         <section aria-labelledby="h-late" className="late-pulse -mx-2 flex flex-col gap-2 rounded-[26px] p-2">

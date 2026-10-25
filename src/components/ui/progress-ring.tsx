@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 /** A ring that fills to `value` (0 to 1) with a smooth animation. The centre is whatever you put inside. */
 export function ProgressRing({
@@ -16,6 +16,7 @@ export function ProgressRing({
   label: string;
   children?: React.ReactNode;
 }) {
+  const gid = `ring-${useId().replace(/:/g, "")}`;
   const [shown, setShown] = useState(0);
   useEffect(() => {
     const id = requestAnimationFrame(() => setShown(Math.max(0, Math.min(1, value))));
@@ -27,7 +28,7 @@ export function ProgressRing({
     <div className="relative flex-none" style={{ width: size, height: size }} role="img" aria-label={label}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
         <defs>
-          <linearGradient id="ring-g" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#ff8c28" />
             <stop offset="1" stopColor="#e5484d" />
           </linearGradient>
@@ -40,7 +41,7 @@ export function ProgressRing({
           fill="none"
           strokeWidth={stroke}
           strokeLinecap="round"
-          stroke="url(#ring-g)"
+          stroke={`url(#${gid})`}
           strokeDasharray={c}
           strokeDashoffset={c * (1 - shown)}
           className="ring-fill"

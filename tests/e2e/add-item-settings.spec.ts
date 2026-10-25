@@ -4,7 +4,7 @@ import { startReady } from "./helpers";
 test.describe("Add", () => {
   test("plain words become a confirm card, and nothing is saved until Save", async ({ page, request }) => {
     await startReady(page, request, []);
-    await page.getByRole("link", { name: "Add" }).click();
+    await page.goto("/add");
     await page.getByLabel(/what should we remember/i).fill("pay water bill friday 5pm $45");
     await page.getByRole("button", { name: /check it/i }).click();
 
@@ -18,7 +18,7 @@ test.describe("Add", () => {
     await page.goto("/upcoming");
     await expect(page.getByText("Pay water bill")).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Add" }).click();
+    await page.goto("/add");
     await page.getByLabel(/what should we remember/i).fill("pay water bill friday 5pm $45");
     await page.getByRole("button", { name: /check it/i }).click();
     await page.getByRole("button", { name: "Save" }).click();

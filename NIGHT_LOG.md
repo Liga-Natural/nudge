@@ -1,3 +1,36 @@
+# Phase 6 (branch `phase-6`): fun, fast Today dashboard + new add flow
+
+**No SQL this time.** Nothing to run in Supabase. New settings (card order, class emoji) are saved in your existing profile settings (`profiles.prefs`), and class colours use the existing `courses.color`. No new tables, so RLS is unchanged (`rls_check` stays at 0 rows). Nothing in your real Supabase or Vercel was touched, no secret was printed.
+
+## Decisions I made (you said not to ask)
+
+* **Kept** the cream/dark colours, fonts, orange→coral gradient, choice tiles and the Step pill. New things reuse them.
+* **Class emoji** are picked from the class name (Italian 🇮🇹, Science 🧪, Language Arts 📖, Algebra ➗, A/V 🎬, Career 💼, History 🌍, plus Art, Music, PE, Spanish, Computer). Anything unknown gets 🎓 and a colour from the name. You can change both: School → tap a class chip → pick an emoji and colour. The emoji is stored in `prefs.course_emoji`, the colour on the class. A class whose colour is white or the old default blue gets its subject colour automatically (this fixes the blank white squares).
+* **Dashboard**: the hero card is unchanged. Under it is a 2-column bento: School, Grades, Money, Habits, Coming up. A card only exists if its feature is on in Settings (Coming up is always there). Customize (✎) lets you hide cards and move them up/down; saved per user in `prefs.dash`. Tapping a card goes to its page; empty cards have a friendly line and a button that opens the add sheet straight into that flow.
+* **School card** "Missing (n)" = homework already past its due time and not snoozed. **Money** shows the soonest unpaid payment (red "Overdue" if past), and a small "Joker bills connected" line when a bills feed is connected (red if its last sync failed). **Grades** rings use each class's newest quarter that has a grade; the ↑/↓ compares the newest grade with the one before it in the same class. **Habits** circles check off right there (optimistic, with Undo, rolls back on failure).
+* **Add flow**: the **+** is now a button that springs up a bottom sheet (the old `/add` page still exists: sheet → "More options — full form"). Quick-type bar with a live preview chip, Enter saves. Eight tiles. Each flow is 2–3 steps with the Step pill; "Save now" appears as soon as the flow has what it needs. Saving shows a tick animation, then a "Saved: … Undo" toast. If a save fails the toast says so (nothing half-saved).
+* **Quick-save skips the quiet-hours question** (the old full form still asks). A reminder inside quiet hours is simply held until quiet hours end.
+* **Grade quarter default** is by date: Aug–mid Oct Q1, mid Oct–Dec Q2, Jan–mid Mar Q3, mid Mar–Jul Q4 (chips let you change it). Letter grades store the 4.0 points for the letter.
+* **Habit emoji** is stored as the first character of the habit's name ("🏃 Run"), because items have no emoji column.
+* **"Recent" and "Again?"** come from your last 60 items (no new table). "Again?" = the same words (numbers ignored) in the same class at least twice.
+* **Live-sync**: the app already re-reads when you come back to it and every minute; I added **pull to refresh** on every screen (pull down from the top). I did not add Supabase Realtime (it needs a database setting).
+* Motion: no animation library; everything respects Reduce Motion. The progress ring now has a unique gradient id per ring.
+
+## Checks I ran
+`npm run lint`, `tsc`, all unit + database tests (372 pass), production build, secrets check, and the browser tests on phone (all) and desktop (new + accessibility). New tests: quick-type preview, each flow's save, card customization, class emoji/colour defaults, dashboard maths, plus browser tests for the sheet, the cards, Customize and the class editor.
+
+## Your phone checklist (from the Home Screen icon, ~5 minutes)
+1. Today: hero card, then cards animate in one after another; numbers count up. Tap School / Grades / Money: each opens its page.
+2. Tap a habit circle: it fills with a ✓, the 🔥 number goes up, the ring at the top moves. Tap Undo in the toast.
+3. ✎ Customize: hide Money, move Grades up, close, kill the app, reopen: still that way.
+4. Pull down from the top of Today: spinner, then fresh data.
+5. **+**: sheet springs up. Type `algebra hw friday 8pm` and watch the chip under the bar; press Enter, see ✓ and the Undo toast.
+6. **+** → Homework → pick a class → type a title → Tomorrow → Next → Save. Then try Payment (number pad), Habit, Grade (18/20 and A–F).
+7. School → tap a class chip → change its emoji and colour; see it on Grades, School and the cards.
+8. Turn on Reduce Motion in iPhone Accessibility settings: sheets and cards just appear.
+
+---
+
 # ⚠️ WAITING ON YOU — branch `terms-years` needs one SQL file before it can merge
 
 Not merged on purpose: this change adds database columns, so it needs SQL first.

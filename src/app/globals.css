@@ -544,3 +544,65 @@ html[data-cold="1"]:not([data-splash="done"]) #header-mark {
     animation: none !important;
   }
 }
+
+/* ---------------------------------------------------------------- Phase 6: dashboard cards and the add sheet */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.bento-card {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms ease;
+}
+a.bento-card:active,
+button.bento-card:active {
+  transform: scale(0.98);
+}
+@keyframes success-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.success-pop {
+  animation: success-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes circle-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.circle-pop {
+  animation: circle-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ptr-spin {
+  animation: ptr-spin 700ms linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .success-pop,
+  .circle-pop,
+  .ptr-spin {
+    animation: none !important;
+  }
+  .bento-card {
+    transition: none !important;
+  }
+}
