@@ -6,18 +6,20 @@ import { getReadyCtx } from "@/lib/context";
 import { makeT } from "@/lib/i18n";
 import { featureOn } from "@/lib/features";
 import { loadAgenda, spaceLabel } from "@/lib/queries";
+import { activityStats } from "@/lib/widgets";
 import { gradesCard, habitCircles, type CardId } from "@/lib/dashboard";
 import { withLooks } from "@/lib/course-look";
 import { currentSchoolYear } from "@/lib/grades";
 import { computeStreak } from "@/lib/streak";
 import { weekDots } from "@/lib/today";
-import { addLocalDays, endOfLocalDay, startOfLocalDay } from "@/lib/time";
+import { addLocalDays, endOfLocalDay, localDateKey, startOfLocalDay } from "@/lib/time";
 import type { Course, GradeRowDb, OccurrenceRow } from "@/lib/types";
 
 // The shortcut row under the greeting: only the features that are switched on.
 const MORE = [
   ["payments", "/payments", "💳", "feature.payments"],
   ["school", "/school", "🎓", "feature.school"],
+  ["school", "/tonight", "🌙", "tonight.title"],
   ["grades", "/grades", "📝", "feature.grades"],
   ["habits", "/habits", "🌱", "feature.habits"],
   ["work", "/lists/work", "💼", "feature.work"],
@@ -36,11 +38,11 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
   const now = new Date();
   const sp = (await searchParams).space ?? null;
 
-  const reach = endOfLocalDay(addLocalDays(now, tz, 14), tz); // two weeks, for the "Coming up" card
+  const reach = endOfLocalDay(addLocalDays(now, tz, 31), tz); // a month ahead, for "Coming up" and the bills card
   const dayStart = startOfLocalDay(now, tz);
   const on = { school: featureOn(profile, "school"), grades: featureOn(profile, "grades"), money: featureOn(profile, "payments"), habits: featureOn(profile, "habits") };
   // Two rounds, each with its calls side by side: the agenda, how many of today's are done, and what the cards need.
-  const [{ entries: all, spaces }, doneRes, courseRes, gradeRes, habitRes, feedRes] = await Promise.all([
+  const [{ entries: all, spaces }, doneRes, courseRes, gradeRes, habitRes, feedRes, recentDoneRes, paidRes] = await Promise.all([
     loadAgenda(supabase, { from: addLocalDays(now, tz, -90), to: reach }),
     supabase.from("occurrences").select("id").eq("status", "done").gte("due_at", dayStart.toISOString()).lte("due_at", endOfLocalDay(now, tz).toISOString()),
     on.school || on.grades ? supabase.from("courses").select("id,name,color,school_year") : Promise.resolve({ data: [] }),
@@ -49,7 +51,14 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
       : Promise.resolve({ data: [] }),
     on.habits ? supabase.from("items").select("id,title").eq("type", "habit").eq("status", "open") : Promise.resolve({ data: [] }),
     on.money ? supabase.from("calendar_feeds").select("kind,enabled,last_synced_at,last_error") : Promise.resolve({ data: [] }),
+    // What got finished in the last two weeks, for the streak, win and recap widgets.
+    supabase.from("occurrences").select("item_id,done_at").eq("status", "done").gte("done_at", addLocalDays(now, tz, -15).toISOString()).limit(600),
+    on.money ? supabase.from("item_payments").select("amount_cents,paid_on").gte("paid_on", `${localDateKey(now, tz).slice(0, 7)}-01`) : Promise.resolve({ data: [] }),
   ]);
+  const recentDone = (recentDoneRes.data ?? []) as { item_id: string; done_at: string | null }[];
+  const doneIds = [...new Set(recentDone.map((d) => d.item_id))];
+  const typeRes = doneIds.length ? await supabase.from("items").select("id,type").in("id", doneIds) : { data: [] };
+  const activity = activityStats(recentDone, Object.fromEntries(((typeRes.data ?? []) as { id: string; type: string }[]).map((i) => [i.id, i.type])), now, tz);
   const spaceId = spaces.some((s) => s.id === sp) ? sp : null;
   const entries = filterBySpace(all, spaceId);
   const rawCourses = (courseRes.data ?? []) as Course[];
@@ -77,7 +86,19 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
     circles = habitCircles(habitItems, occs, Object.fromEntries(Object.entries(habits).map(([id, h]) => [id, h.streak])), now, tz);
   }
 
-  const available: CardId[] = [...(on.school ? (["school"] as const) : []), ...(on.grades ? (["grades"] as const) : []), ...(on.money ? (["money"] as const) : []), ...(on.habits ? (["habits"] as const) : []), "coming"];
+  const available: CardId[] = [
+    ...(on.school ? (["school"] as const) : []),
+    ...(on.grades ? (["grades"] as const) : []),
+    ...(on.money ? (["money"] as const) : []),
+    ...(on.habits ? (["habits"] as const) : []),
+    "coming",
+    "week",
+    ...(on.school ? (["focus", "exam"] as const) : []),
+    ...(on.money ? (["bills"] as const) : []),
+    ...(on.habits || on.school ? (["streaks"] as const) : []),
+    "win",
+    "recap",
+  ];
   const bills = ((feedRes.data ?? []) as { kind?: string; enabled?: boolean; last_synced_at: string | null; last_error: string | null }[]).find((f) => f.kind === "bills" && f.enabled !== false);
   const joker = bills ? { state: bills.last_error ? ("error" as const) : ("ok" as const), at: bills.last_synced_at } : null;
   const gradeCard = on.grades ? gradesCard(rawCourses, (gradeRes.data ?? []) as GradeRowDb[], currentSchoolYear(now, tz)) : null;
@@ -95,7 +116,7 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
       spaceNames={spaceNames}
       showSpaces={showSpaces}
       courses={courses}
-      bento={{ available, layout: profile.prefs?.dash, grades: gradeCard, habits: circles, joker }}
+      bento={{ available, layout: profile.prefs?.dash, grades: gradeCard, habits: circles, joker, activity, paid: (paidRes.data ?? []) as { amount_cents: number; paid_on: string }[] }}
       habits={habits}
       dayOrder={profile.prefs?.day_order ?? {}}
       simple={profile.mode === "simple"}
@@ -110,8 +131,8 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
         <>
           {moreLinks.length > 0 && (
             <nav aria-label={t("more.title")} className="-mx-4 flex gap-2 overflow-x-auto px-4">
-              {moreLinks.map(([k, href, emoji, label]) => (
-                <Link key={k} href={href} className="btn-quiet flex-none">
+              {moreLinks.map(([, href, emoji, label]) => (
+                <Link key={href} href={href} className="btn-quiet flex-none">
                   <span aria-hidden>{emoji}</span> {t(label)}
                 </Link>
               ))}

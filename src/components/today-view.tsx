@@ -9,6 +9,7 @@ import { dueLabel, moneyLabel } from "@/lib/labels";
 import { formatDay, formatDayLong, formatTime, instantToWall, localDateKey } from "@/lib/time";
 import { countdownText, groupTimeline, nextUp, nowLineIndex, PERIODS, periodNow, splitViews, type DotState, type Period } from "@/lib/today";
 import type { CardId, DashPref, GradesCard, HabitCircle } from "@/lib/dashboard";
+import type { Activity } from "@/lib/widgets";
 import type { AgendaEntry } from "@/lib/types";
 import { useNow } from "@/lib/use-now";
 import { Bento, type BentoCourse, type JokerStatus } from "./bento";
@@ -30,7 +31,7 @@ export type TodayViewProps = {
   showSpaces: boolean;
   courses: Record<string, BentoCourse>;
   /** The dashboard cards under the hero. */
-  bento: { available: CardId[]; layout: DashPref | undefined; grades: GradesCard | null; habits: HabitCircle[]; joker: JokerStatus };
+  bento: { available: CardId[]; layout: DashPref | undefined; grades: GradesCard | null; habits: HabitCircle[]; joker: JokerStatus; activity: Activity; paid: { amount_cents: number; paid_on: string }[] };
   habits: Record<string, { streak: number; dots: { key: string; state: DotState }[] }>;
   dayOrder: Record<string, string[]>;
   /** The shortcut row and space chips, drawn by the server. */
@@ -117,6 +118,36 @@ export function TodayView(props: TodayViewProps) {
       });
     });
   }
+
+  // Finish something from a dashboard card: it leaves the list at once, with Undo, and comes back if the save fails.
+  function completeEntry(entry: AgendaEntry) {
+    onChange({ kind: "done", entry });
+    markDone(entry.occId).then((r) => {
+      if (!r.ok) {
+        onChange({ kind: "undo-done", entry });
+        return toast({ message: t("common.error") });
+      }
+      toast({
+        message: t("toast.done", { title: entry.title }),
+        undo: async () => {
+          onChange({ kind: "undo-done", entry });
+          await reopenOccurrence(entry.occId);
+        },
+      });
+    });
+  }
+
+  // The number on the app icon: what is due today plus what is late.
+  const badgeCount = views.today.length + views.late.length;
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    try {
+      if (badgeCount > 0) void nav.setAppBadge?.(badgeCount)?.catch(() => {});
+      else void nav.clearAppBadge?.()?.catch(() => {});
+    } catch {
+      // not supported here
+    }
+  }, [badgeCount]);
 
   const hour = instantToWall(now, tz).h;
   const greeting = hour < 12 ? t("today.greeting.morning") : hour < 18 ? t("today.greeting.afternoon") : t("today.greeting.evening");
@@ -358,6 +389,9 @@ export function TodayView(props: TodayViewProps) {
         habits={circles}
         joker={props.bento.joker}
         onHabit={tapHabit}
+        onDone={completeEntry}
+        activity={props.bento.activity}
+        paid={props.bento.paid}
       />
 
       {view === "today" && views.late.length > 0 && (
