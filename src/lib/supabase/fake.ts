@@ -265,8 +265,8 @@ export function fakeImport(args: ImportArgs) {
       row = courses.find((r) => String(r.name).toLowerCase() === String(c.name).toLowerCase() && !r.external_id);
       status = row ? "updated" : "new";
     } else status = row.name !== c.name ? "updated" : "unchanged";
-    if (commit && status === "new") courses.push({ ...DEFAULTS.courses(), user_id: s.userId, name: c.name, source, external_id: c.external_id, teacher: c.teacher ?? null });
-    else if (commit && status === "updated" && row) Object.assign(row, { name: c.name, source, external_id: c.external_id });
+    if (commit && status === "new") courses.push({ ...DEFAULTS.courses(), user_id: s.userId, name: c.name, source, external_id: c.external_id, teacher: c.teacher ?? null, school_year: c.school_year ?? null });
+    else if (commit && status === "updated" && row) Object.assign(row, { name: c.name, source, external_id: c.external_id, school_year: c.school_year ?? row.school_year ?? null });
     counts.classes[status]++;
     results.push({ kind: "class", external_id: c.external_id, title: c.name, status });
   }
@@ -300,11 +300,11 @@ export function fakeImport(args: ImportArgs) {
       continue;
     }
     const existing = s.tables.grades.find((r) => r.source === source && r.external_id === g.external_id);
-    const status = !existing ? "new" : existing.score !== g.score || existing.out_of !== g.out_of || existing.title !== g.title || (g.letter && existing.letter !== g.letter) || (g.points != null && existing.points !== g.points) ? "updated" : "unchanged";
+    const status = !existing ? "new" : existing.score !== g.score || existing.out_of !== g.out_of || existing.title !== g.title || (g.letter && existing.letter !== g.letter) || (g.points != null && existing.points !== g.points) || (g.term && existing.term !== g.term) || (g.school_year && existing.school_year !== g.school_year) ? "updated" : "unchanged";
     const percent = Math.round(((g.score as number) / (g.out_of as number)) * 10000) / 100;
     if (commit && status === "new") {
-      s.tables.grades.push({ ...DEFAULTS.grades(), user_id: s.userId, course_id: courseId === "preview-class" ? null : courseId, title: g.title, score: g.score, out_of: g.out_of, percent, letter: g.letter ?? null, points: g.points ?? null, posted_at: g.posted_at ?? now(), source, external_id: g.external_id, notified_at: source === "manual" ? now() : null });
-    } else if (commit && status === "updated" && existing) Object.assign(existing, { title: g.title, score: g.score, out_of: g.out_of, percent, letter: g.letter ?? existing.letter ?? null, points: g.points ?? existing.points ?? null });
+      s.tables.grades.push({ ...DEFAULTS.grades(), user_id: s.userId, course_id: courseId === "preview-class" ? null : courseId, title: g.title, score: g.score, out_of: g.out_of, percent, letter: g.letter ?? null, points: g.points ?? null, term: g.term ?? null, school_year: g.school_year ?? null, posted_at: g.posted_at ?? now(), source, external_id: g.external_id, notified_at: source === "manual" ? now() : null });
+    } else if (commit && status === "updated" && existing) Object.assign(existing, { title: g.title, score: g.score, out_of: g.out_of, percent, letter: g.letter ?? existing.letter ?? null, points: g.points ?? existing.points ?? null, term: g.term ?? existing.term ?? null, school_year: g.school_year ?? existing.school_year ?? null });
     counts.grades[status]++;
     results.push({ kind: "grade", external_id: g.external_id, title: g.title, status });
   }

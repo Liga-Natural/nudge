@@ -263,3 +263,85 @@ describe("letter grades and links", () => {
     ]);
   });
 });
+
+describe("terms and school years", () => {
+  const body = {
+    classes: [{ external_id: "c1", name: "Language Arts", teacher: null, school_year: "2026-2027" }],
+    assignments: [],
+    grades: [
+      { external_id: "q1", class: "c1", assignment: null, title: "Quarter average", score: 2.72, out_of: 4, posted_at: new Date().toISOString(), comment: null, letter: "B", points: 2.72, term: "q1", school_year: "2026-2027" },
+      { external_id: "q2", class: "c1", assignment: null, title: "Quarter average", score: 3.4, out_of: 4, posted_at: new Date().toISOString(), comment: null, letter: "A", points: 3.4, term: "q2", school_year: "2026-2027" },
+    ],
+  };
+
+  it("saves the class year and each grade's quarter and year; the same data again is unchanged", async () => {
+    await runImport(user, "colegia", body, true);
+    const c = await db.query<{ school_year: string }>("select school_year from public.courses");
+    expect(c.rows).toEqual([{ school_year: "2026-2027" }]);
+    const g = await db.query<{ term: string; school_year: string }>("select term, school_year from public.grades order by term");
+    expect(g.rows).toEqual([
+      { term: "q1", school_year: "2026-2027" },
+      { term: "q2", school_year: "2026-2027" },
+    ]);
+    const again = await runImport(user, "colegia", body, true);
+    expect(again.counts.classes.unchanged).toBe(1);
+    expect(again.counts.grades.unchanged).toBe(2);
+    const moved = await runImport(user, "colegia", { ...body, grades: [{ ...body.grades[0], term: "q3" }, body.grades[1]] }, true);
+    expect(moved.counts.grades.updated).toBe(1);
+  });
+
+  it("leaving the term and year out later keeps what was saved", async () => {
+    await runImport(user, "colegia", body, true);
+    const bare = { ...body, classes: [{ ...body.classes[0], school_year: null }], grades: body.grades.map((g) => ({ ...g, term: undefined, school_year: undefined })) };
+    const r = await runImport(user, "colegia", bare, true);
+    expect(r.counts.grades.unchanged).toBe(2);
+    const g = await db.query<{ term: string }>("select term from public.grades order by term");
+    expect(g.rows.map((x) => x.term)).toEqual(["q1", "q2"]);
+  });
+
+  it("refuses a made-up quarter or year", async () => {
+    await runImport(user, "colegia", body, true);
+    await expect(db.query("update public.grades set term = 'q5'")).rejects.toThrow();
+    await expect(db.query("update public.grades set school_year = '2026'")).rejects.toThrow();
+    await expect(db.query("update public.courses set school_year = 'soon'")).rejects.toThrow();
+  });
+
+  it("the update line and the clock's push list carry the quarter", async () => {
+    await runImport(user, "colegia", body, true);
+    const u = await db.query<{ body: string }>("select body from public.updates where kind = 'grade' order by body");
+    expect(u.rows.map((r) => r.body)).toContain("Q2 — Quarter average: A 3.40");
+    const rows = await asServer(db, async () => (await db.query<{ term: string }>("select term from public.dispatch_grade_notifications_v3(50) order by term")).rows);
+    expect(rows.map((r) => r.term)).toEqual(["q1", "q2"]);
+  });
+
+  it("fills in what was already there: 1st 9-Weeks -> q1, classes p02-p08 -> 2026-2027", async () => {
+    await runImport(user, "colegia", {
+      classes: [
+        { external_id: "k1", name: "P02 Language Arts", teacher: null },
+        { external_id: "k2", name: "P08 - Science", teacher: null },
+        { external_id: "k3", name: "P10 Elective", teacher: null },
+        { external_id: "k4", name: "Chess club", teacher: null },
+      ],
+      grades: [
+        { external_id: "o1", class: "k1", assignment: null, title: "1st 9-Weeks Average", score: 3, out_of: 4, posted_at: "2026-10-01T00:00:00Z", comment: null },
+        { external_id: "o2", class: "k4", assignment: null, title: "Quiz 1", score: 9, out_of: 10, posted_at: "2026-10-02T00:00:00Z", comment: null },
+        { external_id: "o3", class: "k3", assignment: null, title: "1st 9 weeks", score: 3.5, out_of: 4, posted_at: "2026-10-03T00:00:00Z", comment: null },
+      ],
+    }, true);
+    const file = readFileSync(join(process.cwd(), "supabase", "migrations", "0013_terms_years.sql"), "utf8");
+    await db.exec(file);
+    const c = await db.query<{ name: string; school_year: string | null }>("select name, school_year from public.courses order by name");
+    expect(c.rows).toEqual([
+      { name: "Chess club", school_year: null },
+      { name: "P02 Language Arts", school_year: "2026-2027" },
+      { name: "P08 - Science", school_year: "2026-2027" },
+      { name: "P10 Elective", school_year: null },
+    ]);
+    const g = await db.query<{ external_id: string; term: string | null; school_year: string | null }>("select external_id, term, school_year from public.grades order by external_id");
+    expect(g.rows).toEqual([
+      { external_id: "o1", term: "q1", school_year: "2026-2027" },
+      { external_id: "o2", term: null, school_year: null },
+      { external_id: "o3", term: "q1", school_year: "2026-2027" },
+    ]);
+  });
+});

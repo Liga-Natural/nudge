@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseBillsFeed } from "@/lib/bills-feed";
-import { classAverage, classHeadline, letterFor, letterFromTitle, letterText, percentOf } from "@/lib/grades";
+import { classAverage, classHeadline, currentSchoolYear, defaultTerm, isPastYear, letterFor, letterFromTitle, letterText, percentOf, shortGrade, termHeadline, trend, yearOf } from "@/lib/grades";
 import { buildGradePayload } from "@/lib/push-text";
 import { parseInboxText, toDatabasePayload } from "@/lib/inbox-schema";
 import { tonightAt } from "@/lib/occurrences";
@@ -283,5 +283,62 @@ describe("an assignment link on imported work", () => {
     for (const bad of ["javascript:alert(1)", "ixl.com", "not a link"]) {
       expect(parseInboxText(JSON.stringify({ source: "classroom", assignments: [{ ...item, link: bad }] })).ok, bad).toBe(false);
     }
+  });
+});
+
+describe("quarters and school years", () => {
+  const at = (iso: string) => currentSchoolYear(new Date(iso), "America/New_York");
+
+  it("a school year runs August to July", () => {
+    expect(at("2026-10-24T12:00:00Z")).toBe("2026-2027");
+    expect(at("2027-07-31T12:00:00Z")).toBe("2026-2027");
+    expect(at("2027-08-01T12:00:00Z")).toBe("2027-2028");
+    expect(at("2027-01-05T12:00:00Z")).toBe("2026-2027");
+  });
+
+  it("a grade or class with no year counts in its class's year, else this year", () => {
+    expect(yearOf({ school_year: "2025-2026" }, { school_year: "2026-2027" }, "2026-2027")).toBe("2025-2026");
+    expect(yearOf({}, { school_year: "2025-2026" }, "2026-2027")).toBe("2025-2026");
+    expect(yearOf({ school_year: null }, null, "2026-2027")).toBe("2026-2027");
+    expect(isPastYear("2025-2026", "2026-2027")).toBe(true);
+    expect(isPastYear("2026-2027", "2026-2027")).toBe(false);
+  });
+
+  const rows = [
+    { score: 2.72, out_of: 4, letter: "B", points: 2.72, term: "q1", posted_at: "2026-10-01" },
+    { score: 3.4, out_of: 4, letter: "A", points: 3.4, term: "q2", posted_at: "2026-12-20" },
+    { score: 18, out_of: 20, term: null, posted_at: "2026-11-01" },
+  ];
+
+  it("shows each quarter's own grade, with a trend like B → A", () => {
+    expect(shortGrade(termHeadline(rows, "q1"))).toBe("B");
+    expect(shortGrade(termHeadline(rows, "q2"))).toBe("A");
+    expect(termHeadline(rows, "q3")).toBeNull();
+    expect(trend(rows).map((s) => s.text).join(" → ")).toBe("B → A");
+    expect(defaultTerm(rows)).toBe("q2");
+    expect(defaultTerm([rows[2]])).toBe("all");
+  });
+
+  it("the import format takes a term and a school year, and refuses nonsense", () => {
+    const base = { source: "colegia", classes: [{ external_id: "c", name: "Language Arts", school_year: "2026-2027" }], grades: [{ external_id: "g", class: "c", title: "Avg", score: 3.4, out_of: 4, term: "q2", school_year: "2026-2027" }] };
+    const ok = parseInboxText(JSON.stringify(base));
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      const db = toDatabasePayload(ok.payload, "America/New_York");
+      expect(db.grades[0]).toMatchObject({ term: "q2", school_year: "2026-2027" });
+      expect(db.classes[0].school_year).toBe("2026-2027");
+    }
+    expect(parseInboxText(JSON.stringify({ ...base, grades: [{ ...base.grades[0], term: "q5" }] })).ok).toBe(false);
+    expect(parseInboxText(JSON.stringify({ ...base, grades: [{ ...base.grades[0], school_year: "2026" }] })).ok).toBe(false);
+    expect(parseInboxText(JSON.stringify({ ...base, classes: [{ ...base.classes[0], school_year: "next year" }] })).ok).toBe(false);
+    // old payloads still work
+    expect(parseInboxText(JSON.stringify({ source: "colegia", grades: [{ external_id: "g", class: "c", title: "T", score: 1, out_of: 2 }] })).ok).toBe(true);
+  });
+
+  it("the New grade push names the quarter", () => {
+    const row = { grade_id: "g1", user_id: "u", course_name: "Language Arts", title: "Quarter average", score: 3.4, out_of: 4, percent: 85, letter: "A", points: 3.4, term: "q2", timezone: "America/New_York", language: "en" as const };
+    expect(buildGradePayload([row]).body).toBe("Language Arts — Q2: A 3.40");
+    expect(buildGradePayload([{ ...row, term: "final" }]).body).toBe("Language Arts — Final: A 3.40");
+    expect(buildGradePayload([{ ...row, term: null }]).body).toBe("Quarter average: A 3.40");
   });
 });

@@ -116,7 +116,7 @@ export type AgendaEntry = {
   where?: string | null;
 };
 
-export type Course = { id: string; name: string; color: string };
+export type Course = { id: string; name: string; color: string; school_year?: string | null };
 export type UpdateRow = { id: string; kind: "new_item" | "changed" | "removed" | "paid" | "info" | "grade" | "bill"; title: string; body: string | null; item_id: string | null; created_at: string; read_at: string | null };
 export type FeedRow = { id: string; name: string; host: string; default_type: string; enabled: boolean; last_synced_at: string | null; last_error: string | null; item_count: number; kind?: "calendar" | "classroom" | "bills"; course_id?: string | null };
 
@@ -173,5 +173,7 @@ export type GradeRowDb = {
   comment: string | null;
   letter?: string | null;
   points?: number | string | null;
+  term?: string | null;
+  school_year?: string | null;
 };
 export type TokenRow = { id: string; name: string; token_prefix: string; created_at: string; last_used_at: string | null; expires_at: string | null; revoked_at: string | null };

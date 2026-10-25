@@ -1,18 +1,20 @@
 "use client";
 
+import { currentSchoolYear } from "@/lib/grades";
 import { useState, useTransition } from "react";
 import { confirmImport, previewImport } from "@/app/actions-p3";
 import { useT } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
 import type { ImportReport, ImportStatus } from "@/lib/import-run";
 
+const YEAR = currentSchoolYear(new Date(), "America/New_York");
 const EXAMPLE = JSON.stringify(
   {
     source: "classroom",
-    classes: [{ external_id: "math-101", name: "Math 101", teacher: "Ms. Cruz" }],
+    classes: [{ external_id: "math-101", name: "Math 101", teacher: "Ms. Cruz", school_year: YEAR }],
     assignments: [{ external_id: "hw-3", class: "math-101", title: "Chapter 3 problems", due: "2026-10-22T23:59:00-04:00", notes: "Odd numbers only", link: "https://classroom.google.com/c/abc/a/def" }],
     grades: [{ external_id: "quiz-2", class: "math-101", assignment: "hw-3", title: "Quiz 2", score: 18, out_of: 20, posted: "2026-10-14" },
-      { external_id: "avg-q1", class: "math-101", title: "Quarter 1 average", score: 2.72, out_of: 4, letter: "B", points: 2.72, posted: "2026-10-14" },
+      { external_id: "avg-q1", class: "math-101", title: "Quarter 1 average", score: 2.72, out_of: 4, letter: "B", points: 2.72, term: "q1", school_year: YEAR, posted: "2026-10-14" },
     ],
   },
   null,

@@ -300,3 +300,62 @@ test.describe("school polish", () => {
     await expect(card).not.toContainText("D");
   });
 });
+
+test.describe("quarters and school years", () => {
+  const OLD = "00000000-0000-4000-8000-0000000000f1";
+  const NEWC = "00000000-0000-4000-8000-0000000000f2";
+  const yearNow = () => {
+    const d = new Date();
+    const start = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+    return `${start}-${start + 1}`;
+  };
+  const prevYear = () => {
+    const start = Number(yearNow().slice(0, 4)) - 1;
+    return `${start}-${start + 1}`;
+  };
+  const grade = (id: string, course: string, term: string, letter: string, points: number, year: string) => ({
+    id, course_id: course, title: "Quarter average", score: points, out_of: 4, percent: 80, letter, points, term, school_year: year,
+    posted_at: new Date().toISOString(), source: "colegia", comment: null,
+  });
+
+  test("a quarter chip changes the grade shown, other quarters stay visible, past years are read-only and their homework is hidden", async ({ page, request }) => {
+    const extra = {
+      courses: [
+        { id: NEWC, name: "Language Arts", color: "#e4edff", school_year: yearNow() },
+        { id: OLD, name: "Old Science", color: "#ffe6ec", school_year: prevYear() },
+      ],
+      grades: [
+        grade("00000000-0000-4000-8000-0000000000a1", NEWC, "q1", "B", 2.72, yearNow()),
+        grade("00000000-0000-4000-8000-0000000000a2", NEWC, "q2", "A", 3.4, yearNow()),
+        grade("00000000-0000-4000-8000-0000000000a3", OLD, "q4", "C", 2.1, prevYear()),
+      ],
+    };
+    const items: SeedItem[] = [
+      { title: "This year essay", type: "homework", dueAt: soon(3), courseId: NEWC },
+      { title: "Last year essay", type: "homework", dueAt: soon(4), courseId: OLD },
+    ];
+    await startReady(page, request, items, "en", ALL, extra);
+
+    // past-year homework is not on Today
+    await expect(row(page, "This year essay")).toBeVisible();
+    await expect(row(page, "Last year essay")).toHaveCount(0);
+
+    await page.goto("/grades");
+    const card = page.getByRole("link", { name: /Language Arts/ });
+    await expect(card).toContainText("A 3.40"); // opens on the latest quarter
+    await expect(card).toContainText("B → A");
+    await expect(page.getByRole("link", { name: /Old Science/ })).toHaveCount(0);
+    await page.getByRole("link", { name: "Q1", exact: true }).click();
+    await expect(page.getByRole("link", { name: /Language Arts/ })).toContainText("B 2.72");
+    await page.getByRole("link", { name: "Q3", exact: true }).click();
+    await expect(page.getByRole("link", { name: /Language Arts/ })).toContainText("—");
+
+    // the past year lives under Past years, read-only
+    await page.getByRole("link", { name: new RegExp(prevYear()) }).first().click();
+    await expect(page.getByText(/past school year/i)).toBeVisible();
+    await page.getByRole("link", { name: /Old Science/ }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Old Science");
+    await expect(page.getByText(/past school year/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /add grade/i })).toHaveCount(0);
+  });
+});

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { addGrade, deleteGrade } from "@/app/actions-p3";
+import { TERMS, TERM_LABEL } from "@/lib/grades";
 import { useT } from "@/lib/i18n/client";
 
 export function GradeForm({ courseId }: { courseId: string }) {
@@ -11,6 +12,7 @@ export function GradeForm({ courseId }: { courseId: string }) {
   const [title, setTitle] = useState("");
   const [score, setScore] = useState("");
   const [outOf, setOutOf] = useState("100");
+  const [term, setTerm] = useState("");
   const [letter, setLetter] = useState("");
   const [points, setPoints] = useState("");
   const [error, setError] = useState("");
@@ -30,7 +32,7 @@ export function GradeForm({ courseId }: { courseId: string }) {
         const badLetter = L && (!/^[A-Za-z][+-]?$/.test(L) || (pts !== null && (Number.isNaN(pts) || pts > 10)));
         if (Number.isNaN(s) || Number.isNaN(o) || o <= 0 || s < 0 || badLetter) return setError(t("grades.error.invalid"));
         start(async () => {
-          const r = await addGrade({ courseId, title, score: s, outOf: o, letter: L || null, points: L ? pts : null });
+          const r = await addGrade({ courseId, title, score: s, outOf: o, letter: L || null, points: L ? pts : null, term: term || null });
           if (r.ok) {
             setTitle("");
             setScore("");
@@ -47,6 +49,19 @@ export function GradeForm({ courseId }: { courseId: string }) {
           {t("grades.field.title")}
         </label>
         <input id="g-title" className="field" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} required />
+      </div>
+      <div>
+        <label htmlFor="g-term" className="mb-1 block text-sm font-semibold text-muted">
+          {t("grades.field.term")} <span className="font-normal">({t("common.optional")})</span>
+        </label>
+        <select id="g-term" className="field" value={term} onChange={(e) => setTerm(e.target.value)}>
+          <option value="">{t("grades.term.none")}</option>
+          {TERMS.map((k) => (
+            <option key={k} value={k}>
+              {TERM_LABEL[k]}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>

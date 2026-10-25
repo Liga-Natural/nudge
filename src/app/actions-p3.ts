@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { TERMS } from "@/lib/grades";
 import { getCtx } from "@/lib/context";
 import { addFeed } from "@/lib/feed-create";
 import { generateToken } from "@/lib/inbox-auth";
@@ -61,9 +62,10 @@ const gradeSchema = z.object({
   /** A letter average (B, A-) with its points on a 4.0 scale; when given it is shown instead of a percent. */
   letter: z.string().trim().regex(/^[A-Za-z][+-]?$/).nullish(),
   points: z.number().min(0).max(10).nullish(),
+  term: z.enum(TERMS).nullish(),
 });
 
-export async function addGrade(raw: { courseId: string; title: string; score: number; outOf: number; letter?: string | null; points?: number | null }): Promise<Result> {
+export async function addGrade(raw: { courseId: string; title: string; score: number; outOf: number; letter?: string | null; points?: number | null; term?: string | null }): Promise<Result> {
   const ctx = await ready();
   if (!ctx) return fail("setup");
   const parsed = gradeSchema.safeParse(raw);
@@ -76,6 +78,7 @@ export async function addGrade(raw: { courseId: string; title: string; score: nu
     out_of: parsed.data.outOf,
     letter: parsed.data.letter ? parsed.data.letter.toUpperCase() : null,
     points: parsed.data.letter ? (parsed.data.points ?? null) : null,
+    term: parsed.data.term ?? null,
     source: "manual",
     // Typed by you: no push to tell you what you already know.
     notified_at: new Date().toISOString(),

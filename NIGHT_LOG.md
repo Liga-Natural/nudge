@@ -1,3 +1,22 @@
+# ⚠️ WAITING ON YOU — branch `terms-years` needs one SQL file before it can merge
+
+Not merged on purpose: this change adds database columns, so it needs SQL first.
+
+**Run this in Supabase → SQL Editor → New query → paste → Run → "Success" (safe to run twice):**
+
+* `supabase/migrations/0013_terms_years.sql`
+  * adds `term` (q1 q2 q3 q4 s1 s2 final) and `school_year` ("2026-2027") to grades, and `school_year` to classes,
+  * **fills in your existing rows:** grades whose title has "1st 9-Weeks" get term q1 and 2026-2027; classes whose name has p02–p08 get 2026-2027 (and their grades follow),
+  * updates the import function (term, school_year) and adds `dispatch_grade_notifications_v3` so the push says "Language Arts — Q2: A 3.40".
+
+Check after running: Grades → each class should show the Q1 grade, and the year chip should read 2026-2027. Anything not matched by the fill-in (a class not named p02–p08, grades without "1st 9-Weeks") counts as **this** school year until it is labelled, so nothing disappears.
+
+What changed: Grades has a school-year row and Q1·Q2·Q3·Q4·Final chips (opens on the latest quarter with a grade; "All" shows everything); each class card shows that quarter's grade plus its other quarters as small letters and a trend like "B → A". Past years sit under **Past years**, read-only, and homework of a past-year class leaves Today, Upcoming and the lists. The Import page, `/api/inbox`, the manual grade form, the example JSON and `docs/INBOX_API.md` all take `term` and `school_year`. New classes you add by hand get the current year.
+
+After you run it, say "merge terms-years" and I will merge once CI is green.
+
+---
+
 # ⚠️ WAITING ON YOU — branch `school-polish` needs one SQL file before it can merge
 
 Not merged on purpose: this change adds database columns, so it needs SQL first.
