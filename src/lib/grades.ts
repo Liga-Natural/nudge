@@ -110,3 +110,47 @@ export function defaultTerm(grades: TermGrade[]): Term | "all" {
   const have = trend(grades);
   return have.length ? have[have.length - 1].term : "all";
 }
+
+/** The quarter it is now, by the usual school calendar (Aug-mid Oct, mid Oct-Dec, Jan-mid Mar, mid Mar-Jul). */
+export function currentTerm(now: Date, tz: string): Term {
+  const w = instantToWall(now, tz);
+  const md = w.m * 100 + w.d;
+  if (md >= 801 && md <= 1015) return "q1";
+  if (md > 1015) return "q2";
+  if (md <= 315) return "q3";
+  return md <= 731 ? "q4" : "q1";
+}
+
+/** Grade points on the 4.0 scale for the letters a person can tap (A, A-, B+ ...). */
+export const LETTER_POINTS: Record<string, number> = {
+  A: 4, "A-": 3.7, "B+": 3.3, B: 3, "B-": 2.7, "C+": 2.3, C: 2, "C-": 1.7, "D+": 1.3, D: 1, "D-": 0.7, F: 0,
+};
+
+/** How good a grade is on a 0-100 scale, for rings and "up or down" arrows. Null when it cannot be told. */
+export function gradeValue(g: { score: number; out_of: number; letter?: string | null; points?: number | string | null }): number | null {
+  if (g.letter) {
+    const p = g.points === null || g.points === undefined || g.points === "" ? LETTER_POINTS[g.letter.toUpperCase()] : Number(g.points);
+    return p === undefined || Number.isNaN(p) ? null : Math.round((p / 4) * 1000) / 10;
+  }
+  return g.out_of > 0 ? Math.round((g.score / g.out_of) * 1000) / 10 : null;
+}
+
+/** Reads what a person typed as a score: "18/20", "92", "92%" or a letter "B+". */
+export type ParsedScore = { score: number; outOf: number; letter: string | null };
+export function parseScoreText(text: string): ParsedScore | null {
+  const s = text.trim().replace(/\s+/g, "");
+  if (!s) return null;
+  const letter = /^([A-Fa-f])([+-]?)$/.exec(s);
+  if (letter) {
+    const l = `${letter[1].toUpperCase()}${letter[2]}`;
+    return l in LETTER_POINTS ? { score: LETTER_POINTS[l], outOf: 4, letter: l } : null;
+  }
+  const frac = /^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/.exec(s);
+  if (frac) {
+    const [score, outOf] = [Number(frac[1]), Number(frac[2])];
+    return outOf > 0 && score <= 1_000_000 && outOf <= 1_000_000 ? { score, outOf, letter: null } : null;
+  }
+  const pct = /^(\d+(?:\.\d+)?)%?$/.exec(s);
+  if (pct) return Number(pct[1]) <= 1000 ? { score: Number(pct[1]), outOf: 100, letter: null } : null;
+  return null;
+}

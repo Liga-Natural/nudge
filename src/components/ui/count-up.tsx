@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "@/lib/motion";
 
 /** A number that counts up to its value (and between values). Shows the final number at once for Reduce Motion. */
-export function CountUp({ value, ms = 700, className = "" }: { value: number; ms?: number; className?: string }) {
+export function CountUp({ value, ms = 700, className = "", format }: { value: number; ms?: number; className?: string; format?: (n: number) => string }) {
   const reduced = useReducedMotion();
   const [shown, setShown] = useState(0);
   const from = useRef(0);
@@ -27,8 +27,8 @@ export function CountUp({ value, ms = 700, className = "" }: { value: number; ms
   }, [value, ms, reduced]);
 
   return (
-    <span className={`tabular-nums ${className}`} role="img" aria-label={String(value)}>
-      {reduced ? value : shown}
+    <span className={`tabular-nums ${className}`} role="img" aria-label={format ? format(value) : String(value)}>
+      {format ? format(reduced ? value : shown) : reduced ? value : shown}
     </span>
   );
 }

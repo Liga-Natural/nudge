@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AccentTitle } from "@/components/accent-title";
+import { CourseBadge } from "@/components/course-badge";
 import { FeatureOff } from "@/components/feature-off";
+import { withLooks } from "@/lib/course-look";
 import { getReadyCtx } from "@/lib/context";
 import { featureOn } from "@/lib/features";
 import { currentSchoolYear, defaultTerm, isPastYear, isSchoolYear, isTerm, letterText, shortGrade, TERM_CHIPS, TERM_LABEL, termHeadline, trend, yearOf, type Term } from "@/lib/grades";
@@ -21,7 +23,7 @@ export default async function GradesPage({ searchParams }: { searchParams: Promi
     supabase.from("courses").select("id,name,color,school_year").order("created_at"),
     supabase.from("grades").select("id,course_id,title,score,out_of,percent,posted_at,source,comment,letter,points,term,school_year").order("posted_at", { ascending: false }).limit(1000),
   ]);
-  const courses = (courseRes.data ?? []) as Course[];
+  const courses = withLooks((courseRes.data ?? []) as Course[], profile.prefs?.course_emoji);
   const grades = (gradeRes.data ?? []) as GradeRowDb[];
 
   const current = currentSchoolYear(new Date(), profile.timezone);
@@ -76,7 +78,7 @@ export default async function GradesPage({ searchParams }: { searchParams: Promi
             return (
               <li key={c.id} className="list-none">
                 <Link href={`/grades/${c.id}`} className="card flex items-center gap-3 p-4">
-                  <span aria-hidden className="h-10 w-10 flex-none rounded-2xl border border-line" style={{ background: c.color }} />
+                  <CourseBadge emoji={c.emoji} color={c.color} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-bold">{c.name}</span>
                     <span className="block text-sm text-muted">{mine.length === 0 ? t("grades.none") : t("grades.count", { n: mine.length })}</span>

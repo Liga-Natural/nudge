@@ -2,11 +2,27 @@
 
 import { VTLink as Link } from "@/components/ui/vt-link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { AddSheet } from "@/components/add-sheet";
+import { ADD_EVENT } from "@/lib/add-events";
+import { isAddKind, type AddKind } from "@/lib/add-flows";
 import { useT } from "@/lib/i18n/client";
 
 export function BottomNav({ mode }: { mode: "simple" | "full" }) {
   const pathname = usePathname();
   const t = useT();
+  const [add, setAdd] = useState<{ kind: AddKind | null; at: number } | null>(null);
+
+  // Any screen can open the sheet (an empty card's button), straight into one kind.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const k = (e as CustomEvent<{ kind: unknown }>).detail?.kind;
+      setAdd({ kind: isAddKind(k) ? k : null, at: Date.now() });
+    };
+    window.addEventListener(ADD_EVENT, on);
+    return () => window.removeEventListener(ADD_EVENT, on);
+  }, []);
+
   if (pathname.startsWith("/onboarding")) return null;
 
   const tab = (href: string, emoji: string, label: string) => {
@@ -29,19 +45,24 @@ export function BottomNav({ mode }: { mode: "simple" | "full" }) {
   };
 
   const fab = (
-    <Link
+    <button
       key="add"
-      href="/add"
+      type="button"
       aria-label={t("nav.add")}
-      className="-mt-6 flex h-14 w-14 flex-none items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-2 text-3xl font-bold text-white shadow-card"
+      aria-haspopup="dialog"
+      onClick={() => {
+        setAdd({ kind: null, at: Date.now() });
+      }}
+      className="-mt-6 flex h-14 w-14 flex-none items-center justify-center rounded-full bg-gradient-to-br from-accent to-accent-2 text-3xl font-bold text-white shadow-card transition-transform active:scale-90"
     >
       <span aria-hidden>+</span>
-    </Link>
+    </button>
   );
   const today = tab("/", "🏠", t("nav.today"));
   const upcoming = tab("/upcoming", "🗓️", t("nav.upcoming"));
 
   return (
+    <>
     <nav
       aria-label={t("nav.main")}
       className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
@@ -50,5 +71,7 @@ export function BottomNav({ mode }: { mode: "simple" | "full" }) {
         {mode === "full" ? [today, upcoming, fab, tab("/settings", "⚙️", t("nav.settings"))] : [today, fab, upcoming]}
       </div>
     </nav>
+    {add && <AddSheet open onClose={() => setAdd(null)} startKind={add.kind} openedAt={add.at} />}
+    </>
   );
 }

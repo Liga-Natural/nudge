@@ -1,10 +1,12 @@
 import { enP3 } from "./en-p3";
 import { enP4 } from "./en-p4";
+import { enP6 } from "./en-p6";
 
 // All the words in the app. Spanish lives in es.ts and must have exactly the same keys.
 export const en = {
   ...enP3,
   ...enP4,
+  ...enP6,
   // shared
   "nav.today": "Today",
   "nav.upcoming": "Upcoming",

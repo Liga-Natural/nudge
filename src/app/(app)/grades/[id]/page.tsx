@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { CourseBadge } from "@/components/course-badge";
 import { FeatureOff } from "@/components/feature-off";
+import { courseLook } from "@/lib/course-look";
 import { getReadyCtx } from "@/lib/context";
 import { featureOn } from "@/lib/features";
 import { currentSchoolYear, defaultTerm, isPastYear, isTerm, letterText, TERM_LABEL, termHeadline, yearOf } from "@/lib/grades";
@@ -35,6 +37,7 @@ export default async function ClassGradesPage({ params }: { params: Promise<{ id
   const course = courseRes.data as Course | null;
   if (!course) return notFound;
   const grades = (gradeRes.data ?? []) as GradeRowDb[];
+  const look = courseLook(course, profile.prefs?.course_emoji);
   const current = currentSchoolYear(new Date(), profile.timezone);
   const year = yearOf(course, null, current);
   // A class from a past school year can be looked at, not changed.
@@ -50,7 +53,8 @@ export default async function ClassGradesPage({ params }: { params: Promise<{ id
         ← {t("action.back")}
       </Link>
       <header className="card flex items-center justify-between gap-3 p-5">
-        <div className="min-w-0">
+        <CourseBadge emoji={look.emoji} color={look.color} size={48} />
+        <div className="min-w-0 flex-1">
           <h1 className="truncate text-2xl font-extrabold">{course.name}</h1>
           <p className="text-sm text-muted">
             {t("grades.average")} · {shown === "all" ? year : `${TERM_LABEL[shown]} · ${year}`}

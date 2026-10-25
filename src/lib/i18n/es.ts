@@ -1,10 +1,12 @@
 import type { Key } from "./en";
 import { esP3 } from "./es-p3";
 import { esP4 } from "./es-p4";
+import { esP6 } from "./es-p6";
 
 export const es: Record<Key, string> = {
   ...esP3,
   ...esP4,
+  ...esP6,
   // shared
   "nav.today": "Hoy",
   "nav.upcoming": "Próximos",
