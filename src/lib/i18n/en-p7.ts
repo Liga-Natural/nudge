@@ -1,5 +1,7 @@
 // Phase 7 words (English): more dashboard widgets and Tonight mode. Spanish lives in es-p7.ts with exactly the same keys.
 export const enP7 = {
+  "bento.more": "Show {n} more cards",
+  "bento.less": "Show fewer cards",
   "bento.week": "Week ahead",
   "bento.week.busy": "busiest day",
   "bento.focus": "Focus timer",

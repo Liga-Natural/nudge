@@ -240,6 +240,7 @@ test.describe("more widgets, the icon badge and Tonight mode", () => {
 
   test("every new card is there with something useful in it", async ({ page, request }) => {
     await startReady(page, request, items(), "en", ALL, { courses });
+    await page.getByRole("button", { name: /more cards/i }).click();
     await expect(page.getByRole("region", { name: "Week ahead" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Exam countdown" })).toContainText("Unit 4 Test");
     await expect(page.getByRole("region", { name: "Bills this month" })).toContainText("$900.00");
@@ -281,6 +282,7 @@ test.describe("more widgets, the icon badge and Tonight mode", () => {
 
   test("the new cards and Tonight mode pass the accessibility checks", async ({ page, request }) => {
     await startReady(page, request, items(), "en", ALL, { courses });
+    await page.getByRole("button", { name: /more cards/i }).click();
     await noViolations(page, "today with every widget");
     await page.goto("/tonight");
     await noViolations(page, "tonight mode");

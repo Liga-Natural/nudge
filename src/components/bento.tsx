@@ -56,6 +56,9 @@ const TITLE: Record<CardId, Key> = {
 const EMOJI: Record<CardId, string> = { school: "📚", grades: "📝", money: "💳", habits: "🌱", coming: "🗓️", week: "📆", focus: "⏱️", exam: "🎯", bills: "🧾", streaks: "🔥", win: "🏆", recap: "📊" };
 const SPAN: Record<CardId, string> = { school: "col-span-2", grades: "col-span-2", money: "col-span-1", habits: "col-span-1", coming: "col-span-2", week: "col-span-2", focus: "col-span-2", exam: "col-span-1", bills: "col-span-1", streaks: "col-span-2", win: "col-span-2", recap: "col-span-2" };
 
+/** Cards shown before "Show more", so the list under them stays within reach. */
+const COLLAPSED = 5;
+
 const stretch = "after:absolute after:inset-0 after:rounded-[22px] after:content-['']";
 
 export function Bento(props: BentoProps) {
@@ -63,6 +66,7 @@ export function Bento(props: BentoProps) {
   const { toast } = useToast();
   const [layout, setLayout] = useState<DashPref | undefined>(props.layout);
   const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [, start] = useTransition();
   const { shown, hidden, order } = layoutFor(layout, props.available);
   if (props.available.length === 0) return null;
@@ -123,7 +127,14 @@ export function Bento(props: BentoProps) {
       {shown.length === 0 ? (
         <p className="card p-4 text-muted">{t("bento.allHidden")}</p>
       ) : (
-        <div className="bento">{shown.map((id, i) => card(id, i))}</div>
+        <>
+          <div className="bento">{(showAll ? shown : shown.slice(0, COLLAPSED)).map((id, i) => card(id, i))}</div>
+          {shown.length > COLLAPSED && (
+            <button type="button" className="btn-quiet w-fit self-center" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+              {showAll ? t("bento.less") : t("bento.more", { n: shown.length - COLLAPSED })}
+            </button>
+          )}
+        </>
       )}
 
       <Sheet open={open} onClose={() => setOpen(false)} title={t("bento.customize")} tall>

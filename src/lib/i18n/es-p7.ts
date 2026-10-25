@@ -2,6 +2,8 @@
 import type { enP7 } from "./en-p7";
 
 export const esP7: Record<keyof typeof enP7, string> = {
+  "bento.more": "Mostrar {n} tarjetas más",
+  "bento.less": "Mostrar menos tarjetas",
   "bento.week": "Semana por delante",
   "bento.week.busy": "el día más cargado",
   "bento.focus": "Temporizador de enfoque",
