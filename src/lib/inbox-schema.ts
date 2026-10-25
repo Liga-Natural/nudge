@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TERMS } from "./grades";
 import { wallToInstant } from "./time";
 
 // The one JSON format for bringing school work in: pasted on the Import page, or POSTed to
@@ -22,10 +23,14 @@ const httpLink = z
   .max(500, "is too long (500 characters at most)")
   .refine((v) => /^https?:\/\/\S+$/i.test(v), { message: "must be a web address starting with http:// or https://" });
 
+const schoolYear = z.string().trim().regex(/^\d{4}-\d{4}$/, 'must look like "2026-2027"');
+
 const classSchema = z.object({
   external_id: id,
   name: z.string().trim().min(1, "must not be empty").max(60, "is too long (60 characters at most)"),
   teacher: z.string().trim().max(80).nullish(),
+  /** The school year this class belongs to, like "2026-2027". Past years are kept read-only. */
+  school_year: schoolYear.nullish(),
 });
 
 const assignmentSchema = z.object({
@@ -57,6 +62,9 @@ const gradeSchema = z.object({
     .nullish(),
   /** Points on a 4.0 scale that go with the letter, such as 2.72. */
   points: z.number().min(0, "cannot be negative").max(10, "is too high (10 at most)").nullish(),
+  /** Which part of the year: q1, q2, q3, q4, s1, s2 or final. */
+  term: z.enum(TERMS, { message: 'must be one of "q1", "q2", "q3", "q4", "s1", "s2", "final"' }).nullish(),
+  school_year: schoolYear.nullish(),
 });
 
 export const inboxSchema = z
@@ -130,7 +138,7 @@ export function toInstant(value: string, tz: string): string {
 /** The checked payload in the shape the database function wants (all moments as exact instants). */
 export function toDatabasePayload(p: InboxPayload, tz: string) {
   return {
-    classes: (p.classes ?? []).map((c) => ({ external_id: c.external_id, name: c.name, teacher: c.teacher ?? null })),
+    classes: (p.classes ?? []).map((c) => ({ external_id: c.external_id, name: c.name, teacher: c.teacher ?? null, school_year: c.school_year ?? null })),
     assignments: (p.assignments ?? []).map((a) => ({
       external_id: a.external_id,
       class: a.class ?? null,
@@ -152,6 +160,8 @@ export function toDatabasePayload(p: InboxPayload, tz: string) {
       comment: g.comment ?? null,
       letter: g.letter ? g.letter.toUpperCase() : null,
       points: g.points ?? null,
+      term: g.term ?? null,
+      school_year: g.school_year ?? null,
     })),
   };
 }

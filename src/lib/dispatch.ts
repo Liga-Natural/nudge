@@ -96,9 +96,13 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
   let grades: GradeRow[] = [];
   if (opts.withSummaries !== false) {
     try {
-      grades = await call<GradeRow[]>(rpc, "dispatch_grade_notifications_v2", { p_limit: 50 });
+      grades = await call<GradeRow[]>(rpc, "dispatch_grade_notifications_v3", { p_limit: 50 });
     } catch {
-      grades = await tryCall<GradeRow[]>(rpc, "dispatch_grade_notifications", { p_limit: 50 });
+      try {
+        grades = await call<GradeRow[]>(rpc, "dispatch_grade_notifications_v2", { p_limit: 50 });
+      } catch {
+        grades = await tryCall<GradeRow[]>(rpc, "dispatch_grade_notifications", { p_limit: 50 });
+      }
     }
   }
 

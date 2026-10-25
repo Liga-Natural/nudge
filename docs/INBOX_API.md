@@ -18,7 +18,7 @@ Sending the same data twice never makes duplicates: everything is matched on **(
   "version": 1,
   "source": "classroom",
   "classes": [
-    { "external_id": "math-101", "name": "Math 101", "teacher": "Ms. Cruz" }
+    { "external_id": "math-101", "name": "Math 101", "teacher": "Ms. Cruz", "school_year": "2026-2027" }
   ],
   "assignments": [
     {
@@ -50,7 +50,9 @@ Sending the same data twice never makes duplicates: everything is matched on **(
       "score": 2.72,
       "out_of": 4,
       "letter": "B",
-      "points": 2.72
+      "points": 2.72,
+      "term": "q1",
+      "school_year": "2026-2027"
     }
   ]
 }
@@ -73,6 +75,7 @@ Unknown fields are rejected on purpose (so a typo such as `"duedate"` is caught 
 | `external_id` | yes | Your stable id for the class (max 120 characters). Unique within the request. |
 | `name` | yes | Max 60 characters. If you already have a class with this name that was typed by hand, it is **adopted** (given this external id), not duplicated. |
 | `teacher` | no | |
+| `school_year` | no | The school year the class belongs to, like `"2026-2027"` (August to July). Classes from past years stay in Grades as read-only and their homework leaves Today and Upcoming. A class without one counts as this year. Leave it out on a later import and the saved one is kept. |
 
 ### `assignments[]`  → Homework in Nudge
 
@@ -100,6 +103,9 @@ Each new assignment becomes a **Homework** item with the class and due time, and
 | `posted` | no | Date or date-time, as for `due`. Default: now. |
 | `comment` | no | Max 500 characters. |
 | `letter`, `points` | no | For schools that give a class average as a letter on a 4.0 scale (Dade / Pinnacle: `B 2.72`). `letter` is one letter with an optional `+` or `-` (`"B"`, `"A-"`); `points` is a number from 0 to 10 (normally 0 to 4). When a letter is given Nudge shows **the letter and the points** (`B 2.72`) and does not turn the score into a percent. `score` and `out_of` are still required: send the points and 4 (`2.72` out of `4`). Leave both out on a later import and the saved ones are kept. |
+
+| `term` | no | Which part of the year: `"q1"`, `"q2"`, `"q3"`, `"q4"`, `"s1"`, `"s2"` or `"final"`. The Grades screen has a chip per quarter, shows each class's grade for the chosen quarter, and a small Q1 Q2 Q3 Q4 trend. The "New grade" push reads like `Language Arts — Q2: A 3.40`. |
+| `school_year` | no | Like the class field. A grade without one uses its class's year. |
 
 A class average in Nudge is **points earned ÷ points possible** (a 5/5 quiz and a 45/100 test average to 50/105 = 47.6%). A class that has a grade with a `letter` shows its newest lettered grade instead (`B 2.72`).
 

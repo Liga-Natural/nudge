@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCtx } from "@/lib/context";
+import { currentSchoolYear } from "@/lib/grades";
 import { dedupeReminders, dueInstant, itemInputSchema, toDueLocal, type ItemInput } from "@/lib/item-input";
 import { buildDues, tomorrowMorning, tonightAt } from "@/lib/occurrences";
 import { parseQuickAdd, type ItemType } from "@/lib/parser";
@@ -453,7 +454,7 @@ export async function createCourse(name: string): Promise<Result> {
   const { count } = await ctx.supabase.from("courses").select("id", { count: "exact", head: true });
   const parsed = courseSchema.safeParse({ name, color: COURSE_COLORS[(count ?? 0) % COURSE_COLORS.length] });
   if (!parsed.success) return fail("school.courseName");
-  const { error } = await ctx.supabase.from("courses").insert({ user_id: ctx.userId, ...parsed.data });
+  const { error } = await ctx.supabase.from("courses").insert({ user_id: ctx.userId, ...parsed.data, school_year: currentSchoolYear(new Date(), ctx.profile.timezone) });
   if (error) return fail();
   refresh();
   return { ok: true };

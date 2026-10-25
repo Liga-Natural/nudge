@@ -1,6 +1,8 @@
 // Grades: a class average is total points earned over total points possible (so a 5/5 quiz does not
 // count as much as a 90/100 test). Scores are shown to one decimal, never rounded up to look better.
 
+import { instantToWall } from "./time";
+
 export type GradeLike = { score: number; out_of: number };
 
 export function classAverage(grades: GradeLike[]): number | null {
@@ -55,4 +57,56 @@ export function classHeadline(grades: (GradeLike & LetterLike & { posted_at?: st
   }
   const avg = classAverage(grades);
   return avg === null ? null : { kind: "percent", percent: avg, letter: letterFor(avg) };
+}
+
+// Quarters and school years. A school year runs August to July and is written "2026-2027".
+
+export const TERMS = ["q1", "q2", "q3", "q4", "s1", "s2", "final"] as const;
+export type Term = (typeof TERMS)[number];
+/** The chips on the Grades screen (semesters still count under "All"). */
+export const TERM_CHIPS: Term[] = ["q1", "q2", "q3", "q4", "final"];
+export const TERM_LABEL: Record<Term, string> = { q1: "Q1", q2: "Q2", q3: "Q3", q4: "Q4", s1: "S1", s2: "S2", final: "Final" };
+export const isTerm = (v: unknown): v is Term => typeof v === "string" && (TERMS as readonly string[]).includes(v);
+export const isSchoolYear = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{4}$/.test(v);
+
+/** "2026-2027" for any day from August 2026 to July 2027. */
+export function currentSchoolYear(now: Date, tz: string): string {
+  const w = instantToWall(now, tz);
+  const start = w.m >= 8 ? w.y : w.y - 1;
+  return `${start}-${start + 1}`;
+}
+
+type Dated = { school_year?: string | null };
+
+/** Which year something counts in: its own, else its class's, else this year (nothing is lost for lack of a label). */
+export const yearOf = (own: Dated | null | undefined, course: Dated | null | undefined, current: string): string => own?.school_year || course?.school_year || current;
+
+export const isPastYear = (year: string, current: string) => year < current;
+
+type TermGrade = GradeLike & LetterLike & { term?: string | null; posted_at?: string };
+
+/** The grade shown for one quarter: that quarter's letter, else its percent. Null when it has no grades. */
+export function termHeadline(grades: TermGrade[], term: Term | "all"): Headline | null {
+  return classHeadline(term === "all" ? grades : grades.filter((g) => g.term === term));
+}
+
+/** Short text for a small chip: "B", "A-", "87%". */
+export function shortGrade(h: Headline | null): string | null {
+  return h === null ? null : h.kind === "letter" ? h.letter : `${h.percent}%`;
+}
+
+/** The quarters that have a grade, in order, e.g. [Q1 B, Q2 A] - for "B → A". */
+export function trend(grades: TermGrade[]): { term: Term; text: string }[] {
+  const out: { term: Term; text: string }[] = [];
+  for (const term of TERM_CHIPS) {
+    const text = shortGrade(termHeadline(grades, term));
+    if (text) out.push({ term, text });
+  }
+  return out;
+}
+
+/** The quarter to open on: the latest one that has a grade, else "all". */
+export function defaultTerm(grades: TermGrade[]): Term | "all" {
+  const have = trend(grades);
+  return have.length ? have[have.length - 1].term : "all";
 }

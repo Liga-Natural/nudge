@@ -1,4 +1,4 @@
-import { letterText } from "./grades";
+import { isTerm, letterText, TERM_LABEL } from "./grades";
 import { daysBetweenLocal, formatDay, formatMoney, formatTime, type Lang } from "./time";
 
 // The words in notifications, in English and Spanish.
@@ -44,6 +44,7 @@ export type GradeRow = {
   percent: number | string;
   letter?: string | null;
   points?: number | string | null;
+  term?: string | null;
   timezone: string;
   language: Lang;
 };
@@ -196,6 +197,11 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 export function buildGradePayload(rows: GradeRow[]): PushPayload {
   const first = rows[0];
   const t = T[first.language];
-  const lines = rows.slice(0, 4).map((g) => g.letter ? `${g.title}: ${letterText(g.letter, g.points)}` : `${g.title}: ${fmt(num(g.score))}/${fmt(num(g.out_of))} (${fmt(num(g.percent))}%)`);
+  const lines = rows.slice(0, 4).map((g) => {
+    const value = g.letter ? letterText(g.letter, g.points) : `${fmt(num(g.score))}/${fmt(num(g.out_of))} (${fmt(num(g.percent))}%)`;
+    // A quarter grade reads "Language Arts — Q2: A 3.40"; others keep their own title.
+    const label = isTerm(g.term) && g.course_name ? `${g.course_name} — ${TERM_LABEL[g.term]}` : g.title;
+    return `${label}: ${value}`;
+  });
   return { title: t.gradeTitle(first.course_name), body: lines.join("\n"), url: "/grades", tag: `grade-${first.grade_id}` };
 }
