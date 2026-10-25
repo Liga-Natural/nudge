@@ -64,6 +64,10 @@ export type ItemRow = {
   feed_id?: string | null;
   location?: string | null;
   subtype?: string | null;
+  /** Homework: a link to the assignment (IXL, Savvas, a Google Form...). */
+  link?: string | null;
+  /** Homework: where the work happens. */
+  hw_where?: string | null;
 };
 
 export type OccurrenceRow = {
@@ -108,6 +112,8 @@ export type AgendaEntry = {
   priority: number;
   courseId: string | null;
   autopay: boolean;
+  link?: string | null;
+  where?: string | null;
 };
 
 export type Course = { id: string; name: string; color: string };
@@ -165,5 +171,7 @@ export type GradeRowDb = {
   posted_at: string;
   source: string;
   comment: string | null;
+  letter?: string | null;
+  points?: number | string | null;
 };
 export type TokenRow = { id: string; name: string; token_prefix: string; created_at: string; last_used_at: string | null; expires_at: string | null; revoked_at: string | null };

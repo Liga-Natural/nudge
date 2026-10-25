@@ -22,6 +22,8 @@ export function toEntries(occs: OccurrenceRow[], items: ItemRow[]): AgendaEntry[
       priority: i.priority,
       courseId: i.course_id ?? null,
       autopay: !!i.autopay,
+      link: i.link ?? null,
+      where: i.hw_where ?? null,
     });
   }
   return out.sort((a, b) => a.dueAt.localeCompare(b.dueAt));

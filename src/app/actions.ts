@@ -55,6 +55,8 @@ export async function parseText(text: string): Promise<Result<{ parsed: ParsedFo
       type,
       subtype,
       location: p.location,
+      link: type === "homework" ? p.link : null,
+      where: null,
       checklist: [],
       dueLocal: p.dueAt && w ? toDueLocal(p.dueAt, p.allDay, w) : null,
       allDay: p.allDay,
@@ -126,6 +128,8 @@ export async function createItem(raw: ItemInput): Promise<Result<{ id: string }>
       autopay: v.autopay,
       course_id: v.courseId,
       location: v.location,
+      link: v.type === "homework" ? v.link : null,
+      hw_where: v.type === "homework" ? v.where : null,
       subtype: v.type === "work" ? v.subtype : null,
       ...(v.ringAnyway === undefined ? {} : { ring_anyway: v.ringAnyway }),
     })
@@ -175,6 +179,8 @@ export async function updateItem(itemId: string, raw: ItemInput): Promise<Result
       autopay: v.autopay,
       course_id: v.courseId,
       location: v.location,
+      link: v.type === "homework" ? v.link : null,
+      hw_where: v.type === "homework" ? v.where : null,
       subtype: v.type === "work" ? v.subtype : null,
       ...(v.ringAnyway === undefined ? {} : { ring_anyway: v.ringAnyway }),
     })

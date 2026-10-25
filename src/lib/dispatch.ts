@@ -92,7 +92,15 @@ export async function runDispatch(opts: DispatchOptions): Promise<DispatchResult
 
   // Extras from the Phase 3 files. An older database simply does not have them yet.
   const habitSummaries = opts.withSummaries === false ? [] : await tryCall<HabitSummaryRow[]>(rpc, "dispatch_habit_summaries", { p_now: iso });
-  const grades = opts.withSummaries === false ? [] : await tryCall<GradeRow[]>(rpc, "dispatch_grade_notifications", { p_limit: 50 });
+  // The newer function also carries a letter and points; a database without file 0012 uses the older one.
+  let grades: GradeRow[] = [];
+  if (opts.withSummaries !== false) {
+    try {
+      grades = await call<GradeRow[]>(rpc, "dispatch_grade_notifications_v2", { p_limit: 50 });
+    } catch {
+      grades = await tryCall<GradeRow[]>(rpc, "dispatch_grade_notifications", { p_limit: 50 });
+    }
+  }
 
   const userIds = [
     ...new Set([...rows.map((r) => r.user_id), ...summaries.map((s) => s.user_id), ...habitSummaries.map((h) => h.user_id), ...grades.map((g) => g.user_id)]),

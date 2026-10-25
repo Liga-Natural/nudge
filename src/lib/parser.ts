@@ -24,6 +24,8 @@ export type ParsedItem = {
   courseName: string | null;
   /** Where, from "@ Dr Lopez office" at the end. */
   location: string | null;
+  /** A web address pasted at the end ("ixl lesson monday 8pm https://..."). */
+  link: string | null;
   warnings: ("past" | "no_date" | "package_later")[];
 };
 
@@ -145,7 +147,7 @@ function freqRule(word: string, interval: number, dayOfMonth?: string): Rule {
 }
 
 // Words that only ever mean school work.
-const HOMEWORK_RE = /\b(homework|hw|hmwk|worksheet|assignment|essay|project|tarea|tareas|deberes|ensayo|proyecto)\b/;
+const HOMEWORK_RE = /\b(homework|hw|hmwk|worksheet|assignment|essay|project|ixl|savvas|edpuzzle|nearpod|tarea|tareas|deberes|ensayo|proyecto)\b/;
 // Words that are school work only with a class name or school words nearby: "test nudge" is just a task.
 const TEST_WORD_RE = /\b(exam|exams|quiz|quizzes|test|tests|midterm|midterms|final|finals|examen|examenes|prueba|parcial)\b/;
 const SCHOOL_WORD_RE =
@@ -215,6 +217,14 @@ function pickChrono(text: string, ref: Date, lang: Lang | "auto") {
   return en.length ? en : tryParse("es");
 }
 
+/** A web address at the end of the words is the assignment link. */
+function extractLink(text: string): { text: string; link: string | null } {
+  const m = /\s*\b(https?:\/\/\S+)\s*$/i.exec(text);
+  if (!m) return { text, link: null };
+  const link = m[1].replace(/[.,;)\]]+$/, "");
+  return link.length <= 500 ? { text: text.slice(0, m.index), link } : { text, link: null };
+}
+
 /** "...@ Dr Lopez office" at the end of the words is the place. */
 function extractLocation(text: string): { text: string; location: string | null } {
   const m = /\s@\s?([^@$]{2,120})$/.exec(text);
@@ -237,6 +247,8 @@ export function parseQuickAdd(input: string, opts: { now: Date; tz: string; lang
   const { now, tz } = opts;
   let text = input.trim().replace(/\s+/g, " ");
   const warnings: ParsedItem["warnings"] = [];
+  const linked = extractLink(text);
+  text = linked.text;
   const place = extractLocation(text);
   text = place.text;
 
@@ -330,6 +342,7 @@ export function parseQuickAdd(input: string, opts: { now: Date; tz: string; lang
     subtype: type === "work" ? workKind(norm(input)) : null,
     courseName,
     location: place.location,
+    link: linked.link,
     warnings,
   };
 }

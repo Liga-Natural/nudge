@@ -129,3 +129,19 @@ describe("test / exam / quiz only mean school with a class or school words (bug:
     expect(parse("worksheet tomorrow").type).toBe("homework");
   });
 });
+
+describe("a pasted link at the end", () => {
+  it("is taken out of the title and kept as the link", () => {
+    const p = parse("ixl lesson monday 8pm https://www.ixl.com/math/grade-7");
+    expect(p.link).toBe("https://www.ixl.com/math/grade-7");
+    expect(p.title.toLowerCase()).toContain("ixl lesson");
+    expect(p.title).not.toContain("http");
+    expect(p.type).toBe("homework");
+    expect(wall(p.dueAt)).toMatchObject({ h: 20, mi: 0 });
+  });
+
+  it("drops punctuation stuck to the end of the link, and is null when there is none", () => {
+    expect(parse("read chapter 4 friday http://example.com/a?b=1).").link).toBe("http://example.com/a?b=1");
+    expect(parse("read chapter 4 friday").link).toBeNull();
+  });
+});

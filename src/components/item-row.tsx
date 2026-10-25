@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { archiveItem, markDone, moveOccurrence, reopenOccurrence, restoreItem, snoozeOccurrence, unsnoozeOccurrence } from "@/app/actions";
+import type { Key } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/client";
 import { fireConfetti } from "@/lib/motion";
 import { countdownText, type DotState } from "@/lib/today";
@@ -318,6 +319,7 @@ export function ItemRow({
                     {course.name}
                   </span>
                 )}
+                {isHomework && entry.where && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-ink">{t(("hw.where." + entry.where) as Key)}</span>}
                 {isHomework && countdown && !late && <span className="text-xs font-semibold text-accent-text">{countdown}</span>}
                 {!isPayment && money && <span className="rounded-full bg-pay px-2 py-0.5 text-xs font-semibold text-ink">{money}</span>}
                 {spaceName && <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-ink">{spaceName}</span>}
@@ -384,6 +386,11 @@ export function ItemRow({
 
         {(isHomework || isPayment || lateActions) && (
           <div className="flex flex-wrap gap-2 pl-14" data-nodrag>
+            {isHomework && entry.link && (
+              <a className="btn-quiet text-sm" href={entry.link} target="_blank" rel="noopener noreferrer">
+                {t("hw.open")} ↗
+              </a>
+            )}
             {isHomework && (
               <button className="btn-quiet text-sm" onClick={() => finish("turned-in")}>
                 📤 {t("hw.turnedIn")}

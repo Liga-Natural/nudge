@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseBillsFeed } from "@/lib/bills-feed";
-import { classAverage, letterFor, percentOf } from "@/lib/grades";
+import { classAverage, classHeadline, letterFor, letterFromTitle, letterText, percentOf } from "@/lib/grades";
+import { buildGradePayload } from "@/lib/push-text";
 import { parseInboxText, toDatabasePayload } from "@/lib/inbox-schema";
 import { tonightAt } from "@/lib/occurrences";
 import { matchCourse, parseQuickAdd } from "@/lib/parser";
@@ -219,5 +220,68 @@ describe("snooze: tonight", () => {
     expect(wall(tonightAt(at(2026, 10, 14, 16, 30), NY))).toMatchObject({ d: 14, h: 20, mi: 0 });
     expect(tonightAt(at(2026, 10, 14, 19, 0), NY)).toBeNull();
     expect(tonightAt(at(2026, 10, 14, 23, 3), NY)).toBeNull();
+  });
+});
+
+describe("letter grades (a class average given as a letter on a 4.0 scale)", () => {
+  it("shows the letter and points, never 2.72/4 as 68% and a D", () => {
+    const head = classHeadline([{ score: 2.72, out_of: 4, letter: "B", points: 2.72, posted_at: "2026-10-01" }]);
+    expect(head).toEqual({ kind: "letter", letter: "B", points: 2.72 });
+    expect(letterText("B", 2.72)).toBe("B 2.72");
+    expect(letterText("A-", "3.5")).toBe("A- 3.50");
+    expect(letterText("B")).toBe("B");
+  });
+
+  it("uses the newest lettered grade, and still averages classes that have none", () => {
+    expect(
+      classHeadline([
+        { score: 2.5, out_of: 4, letter: "C", points: 2.5, posted_at: "2026-09-01" },
+        { score: 2.72, out_of: 4, letter: "B", points: 2.72, posted_at: "2026-10-01" },
+        { score: 18, out_of: 20, posted_at: "2026-10-05" },
+      ]),
+    ).toEqual({ kind: "letter", letter: "B", points: 2.72 });
+    expect(classHeadline([{ score: 18, out_of: 20 }])).toEqual({ kind: "percent", percent: 90, letter: "A" });
+    expect(classHeadline([])).toBeNull();
+  });
+
+  it("reads (B, 2.72) out of a title", () => {
+    expect(letterFromTitle("Quarter 1 average (B, 2.72)")).toEqual({ letter: "B", points: 2.72 });
+    expect(letterFromTitle("Semester (a-,3.5)")).toEqual({ letter: "A-", points: 3.5 });
+    expect(letterFromTitle("Quiz 2 (18/20)")).toBeNull();
+    expect(letterFromTitle("Weird (B, 72)")).toBeNull();
+  });
+
+  it("the import format accepts a letter and points, and still accepts old grades", () => {
+    const base = { source: "colegia", grades: [{ external_id: "g", class: "Bio", title: "Avg", score: 2.72, out_of: 4 }] };
+    const old = parseInboxText(JSON.stringify(base));
+    expect(old.ok).toBe(true);
+    const withLetter = parseInboxText(JSON.stringify({ ...base, grades: [{ ...base.grades[0], letter: "b", points: 2.72 }] }));
+    expect(withLetter.ok).toBe(true);
+    if (withLetter.ok) expect(toDatabasePayload(withLetter.payload, "America/New_York").grades[0]).toMatchObject({ letter: "B", points: 2.72 });
+    for (const bad of [{ letter: "BB" }, { letter: "7" }, { letter: "B", points: -1 }, { letter: "B", points: 11 }]) {
+      const r = parseInboxText(JSON.stringify({ ...base, grades: [{ ...base.grades[0], ...bad }] }));
+      expect(r.ok, JSON.stringify(bad)).toBe(false);
+    }
+  });
+
+  it("the New grade push says B 2.72, not a percent", () => {
+    const row = { grade_id: "g1", user_id: "u", course_name: "Bio", title: "Quarter 1 average", score: 2.72, out_of: 4, percent: 68, letter: "B", points: 2.72, timezone: "America/New_York", language: "en" as const };
+    expect(buildGradePayload([row]).body).toBe("Quarter 1 average: B 2.72");
+    expect(buildGradePayload([{ ...row, letter: null, points: null }]).body).toBe("Quarter 1 average: 2.7/4 (68%)");
+  });
+});
+
+describe("an assignment link on imported work", () => {
+  it("is optional, must be a web address, and is passed on", () => {
+    const item = { external_id: "a", title: "IXL", class: "Math" };
+    const ok = parseInboxText(JSON.stringify({ source: "classroom", assignments: [{ ...item, link: "https://www.ixl.com/math/grade-7" }] }));
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(toDatabasePayload(ok.payload, "America/New_York").assignments[0].link).toBe("https://www.ixl.com/math/grade-7");
+    const none = parseInboxText(JSON.stringify({ source: "classroom", assignments: [item] }));
+    expect(none.ok).toBe(true);
+    if (none.ok) expect(toDatabasePayload(none.payload, "America/New_York").assignments[0].link).toBeNull();
+    for (const bad of ["javascript:alert(1)", "ixl.com", "not a link"]) {
+      expect(parseInboxText(JSON.stringify({ source: "classroom", assignments: [{ ...item, link: bad }] })).ok, bad).toBe(false);
+    }
   });
 });

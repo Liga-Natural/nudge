@@ -28,6 +28,7 @@ Sending the same data twice never makes duplicates: everything is matched on **(
       "due": "2026-10-22T23:59:00-04:00",
       "notes": "Odd numbers only",
       "url": "https://classroom.google.com/c/abc/a/def",
+      "link": "https://classroom.google.com/c/abc/a/def",
       "done": false
     }
   ],
@@ -41,6 +42,15 @@ Sending the same data twice never makes duplicates: everything is matched on **(
       "out_of": 20,
       "posted": "2026-10-14",
       "comment": "Nice work"
+    },
+    {
+      "external_id": "avg-math-q1",
+      "class": "math-101",
+      "title": "Quarter 1 average",
+      "score": 2.72,
+      "out_of": 4,
+      "letter": "B",
+      "points": 2.72
     }
   ]
 }
@@ -73,6 +83,7 @@ Unknown fields are rejected on purpose (so a typo such as `"duedate"` is caught 
 | `class` | no | The `external_id` of a class (in this request or imported before), or the class **name**. If it is not known, the assignment is still added, without a class, and a warning is returned. |
 | `due` | no | `"2026-10-22"` (a bare date means **11:59 PM that day in your time zone**), `"2026-10-22T20:00"` (your time zone), or with an offset/`Z` (`"2026-10-22T20:00:00-04:00"`). |
 | `notes`, `url` | no | The url is added to the notes. |
+| `link` | no | The assignment page itself (IXL, Savvas, a Google Form, Classroom...). Must start with `http://` or `https://`. It shows as an **Open ↗** button on the reminder. Leave it out on a later import and the link already saved is kept. |
 | `done` | no | `true` marks it done. |
 
 Each new assignment becomes a **Homework** item with the class and due time, and two reminders: **the night before** (default 6:00 PM) and **2 hours before** (both adjustable, or off, in Settings → Homework reminders). An assignment you edited by hand in Nudge is left alone on later imports; one you finished stays finished.
@@ -88,8 +99,9 @@ Each new assignment becomes a **Homework** item with the class and due time, and
 | `assignment` | no | The `external_id` of an assignment, to link them. |
 | `posted` | no | Date or date-time, as for `due`. Default: now. |
 | `comment` | no | Max 500 characters. |
+| `letter`, `points` | no | For schools that give a class average as a letter on a 4.0 scale (Dade / Pinnacle: `B 2.72`). `letter` is one letter with an optional `+` or `-` (`"B"`, `"A-"`); `points` is a number from 0 to 10 (normally 0 to 4). When a letter is given Nudge shows **the letter and the points** (`B 2.72`) and does not turn the score into a percent. `score` and `out_of` are still required: send the points and 4 (`2.72` out of `4`). Leave both out on a later import and the saved ones are kept. |
 
-A class average in Nudge is **points earned ÷ points possible** (a 5/5 quiz and a 45/100 test average to 50/105 = 47.6%).
+A class average in Nudge is **points earned ÷ points possible** (a 5/5 quiz and a 45/100 test average to 50/105 = 47.6%). A class that has a grade with a `letter` shows its newest lettered grade instead (`B 2.72`).
 
 **"New grade posted in <class>" push:** sent once for a grade that is **new**, from `classroom` or `colegia`, and was posted in the last 7 days. Grades with `source: "manual"`, older grades (a whole report card on the first import), and corrections to an existing grade do not send a push.
 

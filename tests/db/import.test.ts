@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { addUser, asServer, asUser, readyDb, serverLikeSupabase } from "./harness";
@@ -173,5 +175,91 @@ describe("school tables are private", () => {
       const rows = await asUser(db, other, async () => (await db.query(`select * from public.${table}`)).rows);
       expect(rows, table).toHaveLength(0);
     }
+  });
+});
+
+describe("letter grades and links", () => {
+  const withExtras = {
+    ...payload,
+    assignments: [{ ...payload.assignments[0], link: "https://www.ixl.com/math/grade-7" }, payload.assignments[1]],
+    grades: [
+      payload.grades[0],
+      { external_id: "avg1", class: "c1", assignment: null, title: "Quarter 1 average", score: 2.72, out_of: 4, posted_at: new Date().toISOString(), comment: null, letter: "B", points: 2.72 },
+    ],
+  };
+
+  it("saves the letter and points, and the assignment link", async () => {
+    await runImport(user, "classroom", withExtras, true);
+    const g = await db.query<{ letter: string | null; points: string | null }>("select letter, points::text from public.grades order by title");
+    expect(g.rows).toEqual([
+      { letter: "B", points: "2.72" },
+      { letter: null, points: null },
+    ]);
+    const i = await db.query<{ external_uid: string; link: string | null }>("select external_uid, link from public.items order by external_uid");
+    expect(i.rows).toEqual([
+      { external_uid: "a1", link: "https://www.ixl.com/math/grade-7" },
+      { external_uid: "a2", link: null },
+    ]);
+  });
+
+  it("sending the same thing again is unchanged; a changed letter is an update; leaving it out keeps what was saved", async () => {
+    await runImport(user, "classroom", withExtras, true);
+    const same = await runImport(user, "classroom", withExtras, true);
+    expect(same.counts.grades.unchanged).toBe(2);
+    expect(same.counts.assignments.unchanged).toBe(2);
+
+    const better = { ...withExtras, grades: [withExtras.grades[0], { ...withExtras.grades[1], letter: "A", points: 3.5 }] };
+    const r = await runImport(user, "classroom", better, true);
+    expect(r.counts.grades.updated).toBe(1);
+
+    const bare = { ...withExtras, assignments: [payload.assignments[0], payload.assignments[1]], grades: [withExtras.grades[0], { ...withExtras.grades[1], letter: undefined, points: undefined }] };
+    const kept = await runImport(user, "classroom", bare, true);
+    expect(kept.counts.grades.unchanged).toBe(2);
+    expect(kept.counts.assignments.unchanged).toBe(2);
+    const g = await db.query<{ letter: string; points: string }>("select letter, points::text from public.grades where external_id = 'avg1'");
+    expect(g.rows[0]).toEqual({ letter: "A", points: "3.50" });
+    const i = await db.query<{ link: string }>("select link from public.items where external_uid = 'a1'");
+    expect(i.rows[0].link).toBe("https://www.ixl.com/math/grade-7");
+  });
+
+  it("refuses a link that is not a web address and a nonsense letter", async () => {
+    await runImport(user, "classroom", payload, true);
+    await expect(db.query("update public.items set link = 'javascript:alert(1)'")).rejects.toThrow();
+    await expect(db.query("update public.items set hw_where = 'moon'")).rejects.toThrow();
+    await expect(db.query("update public.grades set letter = 'BB'")).rejects.toThrow();
+    await expect(db.query("update public.grades set points = 11")).rejects.toThrow();
+  });
+
+  it("the new-grade update says B 2.72 for a lettered grade", async () => {
+    await runImport(user, "classroom", withExtras, true);
+    const u = await db.query<{ body: string }>("select body from public.updates where kind = 'grade' order by body");
+    expect(u.rows.map((r) => r.body)).toContain("Quarter 1 average: B 2.72");
+  });
+
+  it("the clock's push list carries the letter and points", async () => {
+    await runImport(user, "classroom", withExtras, true);
+    const rows = await asServer(db, async () => (await db.query<{ title: string; letter: string | null; points: string | null }>("select title, letter, points::text from public.dispatch_grade_notifications_v2(50) order by title")).rows);
+    expect(rows).toEqual([
+      { title: "Quarter 1 average", letter: "B", points: "2.72" },
+      { title: "Quiz 2", letter: null, points: null },
+    ]);
+  });
+
+  it("repairs averages imported before letters existed, from '(B, 2.72)' in the title", async () => {
+    await runImport(user, "colegia", { classes: [{ external_id: "c9", name: "Biology", teacher: null }], grades: [
+      { external_id: "old1", class: "c9", assignment: null, title: "Q1 average (B, 2.72)", score: 2.72, out_of: 4, posted_at: "2026-09-01T00:00:00Z", comment: null },
+      { external_id: "old2", class: "c9", assignment: null, title: "Quiz 3 (18/20)", score: 18, out_of: 20, posted_at: "2026-09-02T00:00:00Z", comment: null },
+      { external_id: "old3", class: "c9", assignment: null, title: "Semester (a-, 3.5)", score: 3.5, out_of: 4, posted_at: "2026-09-03T00:00:00Z", comment: null },
+    ] }, true);
+    const before = await db.query<{ n: string }>("select count(*)::text as n from public.grades where letter is not null");
+    expect(before.rows[0].n).toBe("0");
+    const file = readFileSync(join(process.cwd(), "supabase", "migrations", "0012_school_polish.sql"), "utf8");
+    await db.exec(file); // safe to run again: this is what fixes the existing rows
+    const g = await db.query<{ external_id: string; letter: string | null; points: string | null }>("select external_id, letter, points::text from public.grades order by external_id");
+    expect(g.rows).toEqual([
+      { external_id: "old1", letter: "B", points: "2.72" },
+      { external_id: "old2", letter: null, points: null },
+      { external_id: "old3", letter: "A-", points: "3.50" },
+    ]);
   });
 });

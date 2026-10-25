@@ -10,8 +10,10 @@ const EXAMPLE = JSON.stringify(
   {
     source: "classroom",
     classes: [{ external_id: "math-101", name: "Math 101", teacher: "Ms. Cruz" }],
-    assignments: [{ external_id: "hw-3", class: "math-101", title: "Chapter 3 problems", due: "2026-10-22T23:59:00-04:00", notes: "Odd numbers only" }],
-    grades: [{ external_id: "quiz-2", class: "math-101", assignment: "hw-3", title: "Quiz 2", score: 18, out_of: 20, posted: "2026-10-14" }],
+    assignments: [{ external_id: "hw-3", class: "math-101", title: "Chapter 3 problems", due: "2026-10-22T23:59:00-04:00", notes: "Odd numbers only", link: "https://classroom.google.com/c/abc/a/def" }],
+    grades: [{ external_id: "quiz-2", class: "math-101", assignment: "hw-3", title: "Quiz 2", score: 18, out_of: 20, posted: "2026-10-14" },
+      { external_id: "avg-q1", class: "math-101", title: "Quarter 1 average", score: 2.72, out_of: 4, letter: "B", points: 2.72, posted: "2026-10-14" },
+    ],
   },
   null,
   2,

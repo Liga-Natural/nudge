@@ -8,6 +8,9 @@ export const reminderSpecSchema = z.union([
   z.object({ daysBefore: z.number().int().min(0).max(365), atTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) }),
 ]);
 
+export const HW_WHERE = ["classroom", "colegia", "online", "paper"] as const;
+export type HwWhere = (typeof HW_WHERE)[number];
+
 export const itemInputSchema = z.object({
   title: z.string().trim().min(1).max(200),
   type: z.enum(["task", "homework", "payment", "package", "event", "renewal", "work", "habit", "birthday"]),
@@ -26,6 +29,16 @@ export const itemInputSchema = z.object({
   notes: z.string().max(5000).nullable(),
   /** Where (appointments, birthdays, game days). */
   location: z.string().trim().max(200).nullable().default(null),
+  /** Homework: a link to the assignment (IXL, Savvas, a Google Form...). */
+  link: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => /^https?:\/\/\S+$/i.test(v), "Not a web address")
+    .nullable()
+    .default(null),
+  /** Homework: where the work happens. */
+  where: z.enum(HW_WHERE).nullable().default(null),
   /** Work items only: game_day | registration | sponsor | posting. */
   subtype: z.enum(["game_day", "registration", "sponsor", "posting"]).nullable().default(null),
   /** A small to-do list inside the reminder. */

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { Result } from "@/app/actions";
 import { useI18n } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
-import { dueInstant, type ItemInput } from "@/lib/item-input";
+import { dueInstant, HW_WHERE, type HwWhere, type ItemInput } from "@/lib/item-input";
 import { findQuietClash, type QuietSettings } from "@/lib/quiet";
 import { formatTime } from "@/lib/time";
 import { Sheet } from "@/components/sheet";
@@ -77,6 +77,8 @@ export function ItemForm({
   const [courseId, setCourseId] = useState<string | null>(initial.courseId);
   const [reminders, setReminders] = useState<ReminderSpec[]>(initial.reminders);
   const [location, setLocation] = useState(initial.location ?? "");
+  const [link, setLink] = useState(initial.link ?? "");
+  const [where, setWhere] = useState<HwWhere | null>(initial.where ?? null);
   const [subtype, setSubtype] = useState<(typeof WORK_KINDS)[number] | null>(initial.subtype);
   const [checklist, setChecklist] = useState<{ text: string; done: boolean }[]>(initial.checklist);
   const [newCheck, setNewCheck] = useState("");
@@ -161,6 +163,8 @@ export function ItemForm({
         courseId: type === "homework" ? courseId : null,
         notes: notes.trim() || null,
         location: WITH_PLACE.includes(type) && location.trim() ? location.trim() : null,
+        link: type === "homework" && link.trim() ? link.trim() : null,
+        where: type === "homework" ? where : null,
         subtype: type === "work" ? subtype : null,
         checklist: finalChecklist,
         reminders: date ? reminders : [],
@@ -239,6 +243,27 @@ export function ItemForm({
         <input type="checkbox" className="h-5 w-5 accent-[#e8590c]" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />
         {t("common.allDay")}
       </label>
+
+      {type === "homework" && (
+        <>
+          <div>
+            <label htmlFor="f-link" className="mb-1 block text-sm font-semibold text-muted">
+              {t("hw.link")} <span className="font-normal">({t("common.optional")})</span>
+            </label>
+            <input id="f-link" className="field" type="url" inputMode="url" placeholder="https://" value={link} maxLength={500} onChange={(e) => setLink(e.target.value)} />
+          </div>
+          <div>
+            <span className="mb-1 block text-sm font-semibold text-muted">{t("hw.where")}</span>
+            <div className="flex flex-wrap gap-2">
+              {HW_WHERE.map((w) => (
+                <button key={w} type="button" aria-pressed={where === w} className={chip(where === w)} onClick={() => setWhere(where === w ? null : w)}>
+                  {t(("hw.where." + w) as Key)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {WITH_PLACE.includes(type) && (
         <div>

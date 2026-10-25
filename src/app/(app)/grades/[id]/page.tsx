@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FeatureOff } from "@/components/feature-off";
 import { getReadyCtx } from "@/lib/context";
 import { featureOn } from "@/lib/features";
-import { classAverage, letterFor } from "@/lib/grades";
+import { classHeadline, letterText } from "@/lib/grades";
 import { makeT, type Key } from "@/lib/i18n";
 import { formatDay } from "@/lib/time";
 import type { Course, GradeRowDb } from "@/lib/types";
@@ -30,12 +30,12 @@ export default async function ClassGradesPage({ params }: { params: Promise<{ id
 
   const [courseRes, gradeRes] = await Promise.all([
     supabase.from("courses").select("id,name,color").eq("id", id).single(),
-    supabase.from("grades").select("id,course_id,title,score,out_of,percent,posted_at,source,comment").eq("course_id", id).order("posted_at", { ascending: false }).limit(200),
+    supabase.from("grades").select("id,course_id,title,score,out_of,percent,posted_at,source,comment,letter,points").eq("course_id", id).order("posted_at", { ascending: false }).limit(200),
   ]);
   const course = courseRes.data as Course | null;
   if (!course) return notFound;
   const grades = (gradeRes.data ?? []) as GradeRowDb[];
-  const avg = classAverage(grades.map((g) => ({ score: Number(g.score), out_of: Number(g.out_of) })));
+  const head = classHeadline(grades.map((g) => ({ score: Number(g.score), out_of: Number(g.out_of), letter: g.letter, points: g.points, posted_at: g.posted_at })));
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 pt-8">
@@ -48,8 +48,8 @@ export default async function ClassGradesPage({ params }: { params: Promise<{ id
           <p className="text-sm text-muted">{t("grades.average")}</p>
         </div>
         <p className="text-right text-4xl font-extrabold">
-          {avg === null ? "—" : `${avg}%`}
-          {avg !== null && <span className="block text-base font-semibold text-muted">{letterFor(avg)}</span>}
+          {head === null ? "—" : head.kind === "letter" ? letterText(head.letter, head.points) : `${head.percent}%`}
+          {head?.kind === "percent" && <span className="block text-base font-semibold text-muted">{head.letter}</span>}
         </p>
       </header>
 
@@ -71,10 +71,16 @@ export default async function ClassGradesPage({ params }: { params: Promise<{ id
                 </span>
                 <span className="flex flex-none items-center gap-2 text-right">
                   <span>
-                    <span className="block font-bold">
-                      {num(Number(g.score))}/{num(Number(g.out_of))}
-                    </span>
-                    <span className="block text-sm text-muted">{num(Number(g.percent))}%</span>
+                    {g.letter ? (
+                      <span className="block font-bold">{letterText(g.letter, g.points)}</span>
+                    ) : (
+                      <>
+                        <span className="block font-bold">
+                          {num(Number(g.score))}/{num(Number(g.out_of))}
+                        </span>
+                        <span className="block text-sm text-muted">{num(Number(g.percent))}%</span>
+                      </>
+                    )}
                   </span>
                   {g.source === "manual" && <GradeRowActions id={g.id} title={g.title} />}
                 </span>
