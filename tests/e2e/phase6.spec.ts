@@ -125,6 +125,34 @@ test.describe("the add sheet", () => {
   });
 });
 
+test.describe("quiet hours after saving", () => {
+  test("quick-save never holds a reminder silently: a toast says when it will ring, with Ring anyway", async ({ page, request }) => {
+    await resetApp(request, { action: "seed", onboarded: true, items: [], profile: { urgent_override: false } });
+    await signIn(page);
+    await addButton(page).click();
+    const bar = page.getByLabel(/type it in your own words/i);
+    await bar.fill("Call grandma tomorrow 11:30pm");
+    await bar.press("Enter");
+    const toast = page.getByRole("status").filter({ hasText: "Quiet hours — this will ring at 7:00 AM" });
+    await expect(toast).toBeVisible();
+    await toast.getByRole("button", { name: "Ring anyway" }).click();
+    await expect(toast).toHaveCount(0);
+  });
+
+  test("the step-by-step flows say it too", async ({ page, request }) => {
+    await resetApp(request, { action: "seed", onboarded: true, items: [], features: ALL, profile: { urgent_override: false } });
+    await signIn(page);
+    const sheet = await openSheet(page);
+    await sheet.getByRole("group", { name: "Pick a kind" }).getByRole("button", { name: /^Habit/ }).click();
+    await sheet.getByLabel("Name your habit").fill("Stretch");
+    await sheet.getByRole("button", { name: /^Next/ }).click();
+    await sheet.getByRole("button", { name: /^Next/ }).click();
+    await sheet.getByLabel("Time", { exact: true }).fill("23:30");
+    await sheet.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Quiet hours — this will ring at 7:00 AM" })).toBeVisible();
+  });
+});
+
 test.describe("the dashboard", () => {
   const seed = (): SeedItem[] => [
     { title: "Late worksheet", type: "homework", dueAt: new Date(Date.now() - 2 * DAY).toISOString(), courseId: ITALIAN },

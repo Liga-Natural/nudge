@@ -3,6 +3,7 @@ export const enP6 = {
   // the add sheet
   "add.sheet.title": "What are we adding?",
   "add.savedToast": "Saved: {title}",
+  "add.quietToast": "Quiet hours — this will ring at {time}",
   "add.saved.short": "Saved ✓",
   "add.saveFailed": "Couldn't save that — please try again.",
   "add.quick.label": "Type it in your own words",

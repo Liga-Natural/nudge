@@ -9,6 +9,7 @@ import {
   firstOccurrence,
   habitRule,
   padPress,
+  quietRelease,
   pickChip,
   readScore,
   recentKinds,
@@ -428,5 +429,34 @@ describe("grades helpers", () => {
     expect(gradeValue({ score: 18, out_of: 20 })).toBe(90);
     expect(gradeValue({ score: 0, out_of: 4, letter: "B", points: 2.72 })).toBe(68);
     expect(gradeValue({ score: 0, out_of: 4, letter: "A" })).toBe(100);
+  });
+});
+
+describe("quiet hours after a quick save", () => {
+  const quiet = { start: "22:00:00", end: "07:00:00", urgentOverride: false };
+  const ctx = { nudgeStyle: "on_time" as const, spaceId: null, now: NOW, tz: TZ };
+  const draft = (kind: AddKind, patch: Partial<Draft>): Draft => ({ ...emptyDraft(kind, NOW, TZ), ...patch });
+
+  it("a quick-typed reminder at 11:30 PM is held until 7:00 AM, so the toast can say so", () => {
+    const p = parseQuickAdd("call grandma tomorrow 11:30pm", { now: NOW, tz: TZ, lang: "auto", courses: [] });
+    const form = buildQuickInput(p, "call grandma tomorrow 11:30pm", { tz: TZ, nudgeStyle: "on_time", courses: [], isOn: allOn });
+    const { warnings: _w, ...rest } = form;
+    void _w;
+    const release = quietRelease({ ...rest, spaceId: null }, quiet, TZ, NOW);
+    expect(release?.toISOString()).toBe("2026-10-26T11:00:00.000Z"); // Monday 7:00 AM EDT
+  });
+
+  it("every flow is covered: a habit at 11:30 PM clashes, a daytime one does not", () => {
+    const night = buildItem("habit", draft("habit", { title: "Stretch", time: "23:30" }), ctx)!;
+    expect(quietRelease(night, quiet, TZ, NOW)).not.toBeNull();
+    const day = buildItem("habit", draft("habit", { title: "Stretch", time: "10:00" }), ctx)!;
+    expect(quietRelease(day, quiet, TZ, NOW)).toBeNull();
+  });
+
+  it("Ring anyway, the urgent exception and no date all mean no toast", () => {
+    const night = buildItem("habit", draft("habit", { title: "Stretch", time: "23:30" }), ctx)!;
+    expect(quietRelease({ ...night, ringAnyway: true }, quiet, TZ, NOW)).toBeNull();
+    expect(quietRelease(night, { ...quiet, urgentOverride: true }, TZ, NOW)).toBeNull();
+    expect(quietRelease(buildItem("task", draft("task", { title: "x" }), ctx)!, quiet, TZ, NOW)).toBeNull();
   });
 });

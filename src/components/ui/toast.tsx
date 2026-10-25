@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/client";
 
-type ToastInput = { message: string; undo?: () => void | Promise<void>; ms?: number };
+type ToastInput = { message: string; undo?: () => void | Promise<void>; /** A second button (for example "Ring anyway"). */ action?: { label: string; run: () => void | Promise<void> }; ms?: number };
 type ToastItem = ToastInput & { id: number };
 
 const Ctx = createContext<{ toast: (t: ToastInput) => void }>({ toast: () => {} });
@@ -20,7 +20,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     (input: ToastInput) => {
       const id = next.current++;
       setItems((cur) => [...cur.slice(-2), { ...input, id }]);
-      setTimeout(() => dismiss(id), input.ms ?? (input.undo ? 6000 : 3500));
+      setTimeout(() => dismiss(id), input.ms ?? (input.undo || input.action ? 6000 : 3500));
     },
     [dismiss],
   );
@@ -33,6 +33,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {items.map((i) => (
           <div key={i.id} role="status" className="slide-in pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-background shadow-card">
             <span className="min-w-0 flex-1 font-semibold">{i.message}</span>
+            {i.action && (
+              <button
+                className="min-h-[44px] flex-none rounded-full px-3 font-extrabold text-[#ffb07a]"
+                onClick={async () => {
+                  dismiss(i.id);
+                  await i.action?.run();
+                }}
+              >
+                {i.action.label}
+              </button>
+            )}
             {i.undo && (
               <button
                 className="min-h-[44px] flex-none rounded-full px-3 font-extrabold text-[#ffb07a]"

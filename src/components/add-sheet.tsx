@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createCourse, createItem, deleteItem, type Result } from "@/app/actions";
 import { addGrade, deleteGrade } from "@/app/actions-p3";
-import { loadAddContext, type AddContext, type AddCourse } from "@/app/actions-p6";
+import { loadAddContext, ringItemAnyway, type AddContext, type AddCourse } from "@/app/actions-p6";
 import { Sheet } from "@/components/sheet";
 import { Chip, ChipRow } from "@/components/ui/chip";
 import { useToast } from "@/components/ui/toast";
@@ -17,6 +17,7 @@ import {
   emptyDraft,
   GRADE_TYPES,
   padPress,
+  quietRelease,
   pickChip,
   readScore,
   stepReady,
@@ -31,7 +32,7 @@ import type { FeatureKey } from "@/lib/features";
 import { TERM_CHIPS, TERM_LABEL } from "@/lib/grades";
 import { useI18n } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
-import { HW_WHERE } from "@/lib/item-input";
+import { HW_WHERE, type ItemInput } from "@/lib/item-input";
 import { parseQuickAdd } from "@/lib/parser";
 import { buildQuickInput, quickPreview } from "@/lib/quick-add";
 import { formatDay, formatMoney, formatTime } from "@/lib/time";
@@ -56,7 +57,7 @@ const TIME_CHIPS: [string, Key][] = [
   ["21:00", "add.time.night"],
 ];
 
-const BASICS: AddContext = { courses: [], types: ["task", "homework", "payment", "event"], grades: false, nudgeStyle: "on_time", spaceId: null, recent: [], again: [] };
+const BASICS: AddContext = { courses: [], types: ["task", "homework", "payment", "event"], grades: false, nudgeStyle: "on_time", quiet: { start: "22:00", end: "07:00", urgentOverride: true }, spaceId: null, recent: [], again: [] };
 
 type Props = { open: boolean; onClose: () => void; startKind?: AddKind | null; /** When the sheet was opened (ms), taken in the tap handler so dates are right without a re-render. */ openedAt: number };
 
@@ -120,19 +121,31 @@ export function AddSheet({ open, onClose, startKind = null, openedAt }: Props) {
   );
 
   // ------------------------------------------------------------------------------- saving
-  function finish(title: string, run: () => Promise<{ ok: boolean; undo?: () => Promise<unknown>; error?: Key | "setup" }>) {
+  function finish(title: string, run: () => Promise<{ ok: boolean; id?: string; undo?: () => Promise<unknown>; error?: Key | "setup" }>, item?: ItemInput) {
     setSaved(title);
     // The success tick shows for a moment while the save happens in the background; if it fails, it says so.
     run()
       .then((r) => {
-        if (r.ok) toast({ message: t("add.savedToast", { title }), undo: r.undo ? async () => void (await r.undo!()) : undefined });
+        if (r.ok) {
+          toast({ message: t("add.savedToast", { title }), undo: r.undo ? async () => void (await r.undo!()) : undefined });
+          // Never hold a reminder silently: say so, and offer to ring anyway.
+          const release = item && r.id ? quietRelease(item, ctx?.quiet ?? BASICS.quiet, tz, new Date()) : null;
+          if (release && r.id) {
+            const id = r.id;
+            toast({
+              message: t("add.quietToast", { time: formatTime(release, tz, lang) }),
+              action: { label: t("quiet.ask.ring"), run: async () => void (await ringItemAnyway(id)) },
+              ms: 10000,
+            });
+          }
+        }
         else toast({ message: r.error && r.error !== "setup" ? t(r.error) : t("add.saveFailed"), ms: 6000 });
       })
       .catch(() => toast({ message: t("add.saveFailed"), ms: 6000 }));
     closing.current = setTimeout(onClose, 650);
   }
 
-  const asItem = (r: Result<{ id: string }>) => ({ ...r, undo: r.ok ? () => deleteItem(r.id) : undefined });
+  const asItem = (r: Result<{ id: string }>) => ({ ...r, id: r.ok ? r.id : undefined, undo: r.ok ? () => deleteItem(r.id) : undefined });
 
   function saveFlow() {
     if (!kind || !draft) return;
@@ -148,7 +161,7 @@ export function AddSheet({ open, onClose, startKind = null, openedAt }: Props) {
     }
     const item = buildItem(kind, draft, flowCtx);
     if (!item) return setError(t("add.titleRequired"));
-    finish(item.title, async () => asItem(await createItem(item)));
+    finish(item.title, async () => asItem(await createItem(item)), item);
   }
 
   function saveQuick(e: React.FormEvent) {
@@ -160,7 +173,7 @@ export function AddSheet({ open, onClose, startKind = null, openedAt }: Props) {
     const { warnings: _w, ...form } = buildQuickInput(p, text, { tz, nudgeStyle: c.nudgeStyle, courses, isOn: featureOn });
     void _w;
     const item = { ...form, spaceId: c.spaceId };
-    finish(item.title, async () => asItem(await createItem(item)));
+    finish(item.title, async () => asItem(await createItem(item)), item);
   }
 
   async function addClass() {

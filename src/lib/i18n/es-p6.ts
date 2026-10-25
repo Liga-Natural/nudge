@@ -4,6 +4,7 @@ import type { enP6 } from "./en-p6";
 export const esP6: Record<keyof typeof enP6, string> = {
   "add.sheet.title": "¿Qué vamos a agregar?",
   "add.savedToast": "Guardado: {title}",
+  "add.quietToast": "Horas de silencio — sonará a las {time}",
   "add.saved.short": "Guardado ✓",
   "add.saveFailed": "No se pudo guardar. Inténtalo de nuevo.",
   "add.quick.label": "Escríbelo con tus palabras",

@@ -6,6 +6,8 @@ import type { HwWhere, ItemInput } from "./item-input";
 import { ruleToString } from "./recurrence";
 import type { NudgeStyle, ReminderSpec } from "./reminders";
 import { defaultReminders } from "./reminders";
+import { dueInstant } from "./item-input";
+import { findQuietClash, type QuietSettings } from "./quiet";
 import { addLocalDays, instantToWall, localDateKey } from "./time";
 
 export const ADD_KINDS = ["homework", "task", "payment", "event", "birthday", "habit", "renewal", "grade"] as const;
@@ -383,4 +385,11 @@ export function againChips(items: RecentItem[], limit = 3): Again[] {
     .sort((a, b) => b.count - a.count || b.latest.localeCompare(a.latest))
     .slice(0, limit)
     .map((g) => ({ kind: g.kind, title: g.title, courseId: g.courseId, count: g.count }));
+}
+
+/** When a just-saved item's reminder would be held for quiet hours: the moment it will ring instead, or null if it rings on time. */
+export function quietRelease(item: ItemInput, quiet: QuietSettings, tz: string, now: Date): Date | null {
+  if (item.ringAnyway) return null;
+  const dueAt = dueInstant(item.dueLocal, item.allDay, tz);
+  return findQuietClash({ dueAt, reminders: item.reminders, tz, quiet, now })?.releaseAt ?? null;
 }

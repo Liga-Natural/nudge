@@ -10,6 +10,7 @@ import { featureOn } from "@/lib/features";
 import { currentSchoolYear, yearOf } from "@/lib/grades";
 import type { Key } from "@/lib/i18n";
 import type { ItemType } from "@/lib/parser";
+import type { QuietSettings } from "@/lib/quiet";
 import type { NudgeStyle } from "@/lib/reminders";
 import { enabledItemTypes } from "@/lib/types";
 import type { Result } from "./actions";
@@ -30,6 +31,7 @@ export type AddContext = {
   types: ItemType[];
   grades: boolean;
   nudgeStyle: NudgeStyle;
+  quiet: QuietSettings;
   spaceId: string | null;
   recent: AddKind[];
   again: Again[];
@@ -60,6 +62,7 @@ export async function loadAddContext(): Promise<Result<{ context: AddContext }>>
       types: enabledItemTypes(profile.features),
       grades: featureOn(profile, "grades"),
       nudgeStyle: profile.nudge_style,
+      quiet: { start: profile.quiet_start, end: profile.quiet_end, urgentOverride: profile.urgent_override },
       spaceId: (spaces.find((s) => s.is_default) ?? spaces[0])?.id ?? null,
       recent: recentKinds(items),
       again: againChips(items),
@@ -107,6 +110,17 @@ export async function setCourseLook(raw: { id: string; emoji: string; color: str
     .update({ prefs: { ...(ctx.profile.prefs ?? {}), course_emoji: emojis } })
     .eq("user_id", ctx.userId);
   if (error) return fail("settings.error.save");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** "Ring anyway" after a save: lets that item break through quiet hours. */
+export async function ringItemAnyway(itemId: string): Promise<Result> {
+  const ctx = await ready();
+  if (!ctx) return fail("setup");
+  if (!z.string().uuid().safeParse(itemId).success) return fail();
+  const { error } = await ctx.supabase.from("items").update({ ring_anyway: true }).eq("id", itemId);
+  if (error) return fail();
   revalidatePath("/", "layout");
   return { ok: true };
 }
