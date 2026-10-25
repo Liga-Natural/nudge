@@ -3,12 +3,14 @@ import { esP3 } from "./es-p3";
 import { esP4 } from "./es-p4";
 import { esP6 } from "./es-p6";
 import { esP7 } from "./es-p7";
+import { esP8 } from "./es-p8";
 
 export const es: Record<Key, string> = {
   ...esP3,
   ...esP4,
   ...esP6,
   ...esP7,
+  ...esP8,
   // shared
   "nav.today": "Hoy",
   "nav.upcoming": "Próximos",
