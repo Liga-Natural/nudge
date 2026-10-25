@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
     // Changes on every deploy; the page and the service worker compare it to spot a newer version.
     NUDGE_BUILD: (process.env.VERCEL_GIT_COMMIT_SHA ?? String(Date.now())).slice(0, 12),
   },
+  // Settings reads the Scriptable widget script from disk so the app can copy it for you.
+  outputFileTracingIncludes: { "/settings": ["./scripts/nudge-widget.js"] },
   turbopack: {
     rules: {
       "*.css": {

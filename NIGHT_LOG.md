@@ -1,3 +1,19 @@
+# Home Screen widgets (branch `home-widgets`)
+
+**No SQL.** Widget tokens reuse the existing `api_tokens` table with a different prefix (`ndw_`), so nothing to run in Supabase. Nothing in `../joker` was changed (only read), and no real Supabase/Vercel was touched.
+
+## What is new
+* **Settings → Home Screen widgets**: Create widget token (random, shown once, stored only as a fingerprint, revocable), Copy script (Nudge's address filled in), the steps, and the list of Parameters with a line each.
+* **`GET /api/widget`**: one read-only call with everything the widgets draw. Widget tokens (`ndw_`) work only here; import tokens (`ndg_`) work only on `/api/inbox` (tested both ways). Rate limited (60/min per token, 120/min per address), answers cached 30 s per person, built from a handful of parallel queries, each naming the user.
+* **`scripts/nudge-widget.js`** (Scriptable): Parameters `next`, `today`, `school`, `grades`, `week`, `habits`, `rotate`; small/medium/large, light + dark in Nudge's colours, class emojis; Lock Screen inline / circular / rectangular; tapping opens the right Nudge page; saves the last answer and shows it with "offline · updated 4:10 PM" when Nudge can't be reached, so it is never blank.
+* `docs/WIDGETS.md`: step by step for your iPhone, including the Smart Stack.
+* Found and fixed while testing: the login proxy would have intercepted `/api/widget`; it is now excluded like `/api/inbox`.
+
+## Your phone steps (5 minutes)
+Follow `docs/WIDGETS.md`: install Scriptable, make the token in Nudge, Copy script, paste into Scriptable, paste the token on the `TOKEN` line, press Play, then add the widget with a Parameter. I could not run Scriptable here, so the first look at the widgets on your phone is the real test: tell me what looks off.
+
+---
+
 # Phase 7 (branch `phase-7`): more dashboard widgets, icon badge, Tonight mode
 
 **No SQL.** No new tables or columns. Nothing in your real Supabase or Vercel was touched.

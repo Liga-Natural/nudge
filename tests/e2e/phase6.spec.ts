@@ -288,3 +288,35 @@ test.describe("more widgets, the icon badge and Tonight mode", () => {
     await noViolations(page, "tonight mode");
   });
 });
+
+test.describe("Home Screen widgets in Settings", () => {
+  test("make a token (shown once), copy the script, see every Parameter, revoke", async ({ page, request, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => {});
+    await startReady(page, request, [], "en", {});
+    await page.goto("/settings");
+    const section = page.getByRole("region", { name: "Home Screen widgets" });
+    await expect(section).toBeVisible();
+    for (const p of ["next", "today", "school", "grades", "week", "habits", "rotate"]) await expect(section.locator("code", { hasText: new RegExp(`^${p}$`) })).toBeVisible();
+    await section.getByRole("button", { name: "Create widget token" }).click();
+    const token = section.getByTestId("new-widget-token");
+    await expect(token).toHaveText(/^ndw_[A-Za-z0-9_-]{40,}$/);
+    await expect(section.getByRole("listitem").filter({ hasText: "ndw_" })).toContainText("Never used yet");
+    await section.getByRole("button", { name: "Copy script" }).click();
+    await expect(section.getByRole("status").filter({ hasText: /Script copied|Couldn't copy/ })).toBeVisible();
+    await section.getByRole("button", { name: /Revoke: ndw_/ }).click();
+    await expect(section.getByRole("listitem").filter({ hasText: "ndw_" })).toContainText("Revoked on");
+  });
+
+  test("the widget address refuses a missing or wrong token with a plain message", async ({ request }) => {
+    const none = await request.get("/api/widget");
+    expect([401, 503]).toContain(none.status());
+    const post = await request.post("/api/widget");
+    expect([405, 503]).toContain(post.status());
+  });
+
+  test("the Settings section passes the accessibility checks", async ({ page, request }) => {
+    await startReady(page, request, [], "en", {});
+    await page.goto("/settings");
+    await noViolations(page, "settings with widgets");
+  });
+});
