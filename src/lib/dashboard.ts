@@ -5,7 +5,7 @@ import { daysBetweenLocal, localDateKey } from "./time";
 import type { AgendaEntry, Course, GradeRowDb, OccurrenceRow } from "./types";
 
 // ----------------------------------------------------------------------------- card order and hiding
-export const CARD_IDS = ["school", "grades", "money", "habits", "coming"] as const;
+export const CARD_IDS = ["school", "grades", "money", "habits", "coming", "week", "focus", "exam", "bills", "streaks", "win", "recap"] as const;
 export type CardId = (typeof CARD_IDS)[number];
 export type DashPref = { order?: string[]; hidden?: string[] };
 export const isCardId = (v: unknown): v is CardId => typeof v === "string" && (CARD_IDS as readonly string[]).includes(v);

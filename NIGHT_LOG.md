@@ -1,3 +1,22 @@
+# Phase 7 (branch `phase-7`): more dashboard widgets, icon badge, Tonight mode
+
+**No SQL.** No new tables or columns. Nothing in your real Supabase or Vercel was touched.
+
+## What is new
+* **Seven new Today cards** (all work with Customize; they join the end of your saved order): **Week ahead** (7 days with counts, busiest day highlighted), **Focus timer** (15/25/45 min ring; when it ends it offers "Mark done" on your next homework), **Exam countdown** (nearest test or quiz, days left in a ring), **Bills this month** (still to pay vs paid, with a bar), **Streaks** (best habit streak, homework this week, all done this week, vs last week), **Win of the day** (what you finished yesterday or today, else a short nudge), **Weekly recap** (done, homework, missing, coming this week, newest grade; highlighted on Sundays).
+* **App icon badge**: the number on the Home Screen icon is what is due today plus what is late (clears at 0). It updates whenever Today is open or refreshes; iPhone needs the notifications permission already granted to the Home Screen app.
+* **Tonight mode** (`/tonight`, also a 🌙 shortcut under the greeting and a button on the Focus card): all late homework and everything due before noon tomorrow, in order, big tick circles, a ring that fills, confetti on the last one. The list stays put while you tick (it does not vanish on refresh).
+* Customize now scrolls (there are 12 cards).
+
+## Not done, and why
+* **Real iPhone Home Screen widgets**: iOS only allows those for native apps, not for a web app on the Home Screen. The icon badge is the closest thing a web app can do. A native app would be a separate project.
+* **Weekly recap as a push**: I made it a card instead (a push needs a change to the nightly job). **Realtime sync**: needs a Supabase setting; pull to refresh plus the existing refresh-on-return cover it.
+
+## Phone checklist
+1. Today: scroll the new cards; Customize hides/moves them. 2. Focus timer: Start, Pause, Reset; let a 15-min one finish once and tap Mark done. 3. Icon badge: close the app and look at the icon number. 4. 🌙 Tonight mode: tick things off, see the ring and confetti.
+
+---
+
 # Phase 6 (branch `phase-6`): fun, fast Today dashboard + new add flow
 
 **No SQL this time.** Nothing to run in Supabase. New settings (card order, class emoji) are saved in your existing profile settings (`profiles.prefs`), and class colours use the existing `courses.color`. No new tables, so RLS is unchanged (`rls_check` stays at 0 rows). Nothing in your real Supabase or Vercel was touched, no secret was printed.

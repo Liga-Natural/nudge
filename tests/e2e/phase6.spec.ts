@@ -228,3 +228,63 @@ test.describe("the dashboard", () => {
     await expect(page.getByRole("button", { name: /Edit class: p03 Algebra/ })).toContainText("🧮");
   });
 });
+
+test.describe("more widgets, the icon badge and Tonight mode", () => {
+  const items = (): SeedItem[] => [
+    { title: "Late worksheet", type: "homework", dueAt: new Date(Date.now() - 2 * DAY).toISOString(), courseId: MATH },
+    { title: "Unit 4 Test", type: "homework", dueAt: new Date(Date.now() + 3 * DAY).toISOString(), courseId: MATH },
+    { title: "Pay rent", type: "payment", dueAt: new Date(Date.now() + 60_000).toISOString(), amountCents: 90000 },
+    { title: "🏃 Run", type: "habit", rrule: "FREQ=DAILY", dueAt: new Date(Date.now() + 60_000).toISOString() },
+  ];
+  const courses = [{ id: MATH, name: "p03 Algebra", color: "#e4edff" }];
+
+  test("every new card is there with something useful in it", async ({ page, request }) => {
+    await startReady(page, request, items(), "en", ALL, { courses });
+    await page.getByRole("button", { name: /more cards/i }).click();
+    await expect(page.getByRole("region", { name: "Week ahead" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Exam countdown" })).toContainText("Unit 4 Test");
+    await expect(page.getByRole("region", { name: "Bills this month" })).toContainText("$900.00");
+    await expect(page.getByRole("region", { name: "Streaks" })).toContainText("best streak");
+    await expect(page.getByRole("region", { name: "Win of the day" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Weekly recap" })).toContainText("missing");
+    const focus = page.getByRole("region", { name: "Focus timer" });
+    await expect(focus).toContainText("25:00");
+    await focus.getByRole("button", { name: "Start" }).click();
+    await expect(focus.getByRole("button", { name: "Pause" })).toBeVisible();
+    await focus.getByRole("button", { name: "Pause" }).click();
+    await focus.getByRole("button", { name: "Reset" }).click();
+    await expect(focus).toContainText("25:00");
+  });
+
+  test("the app icon badge shows what is due and late", async ({ page, request }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __badge: number | null }).__badge = null;
+      (navigator as unknown as { setAppBadge: (n: number) => Promise<void> }).setAppBadge = async (n) => {
+        (window as unknown as { __badge: number | null }).__badge = n;
+      };
+    });
+    await startReady(page, request, items(), "en", ALL, { courses });
+    // 1 late homework + payment and habit due today (the test exam is later this week).
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __badge: number | null }).__badge)).toBe(3);
+  });
+
+  test("Tonight mode lists what is late or due by tomorrow noon, and ticking fills the ring", async ({ page, request }) => {
+    await startReady(page, request, items(), "en", ALL, { courses });
+    await page.goto("/tonight");
+    await expect(page.getByTestId("tonight-row")).toHaveCount(1);
+    await expect(page.getByTestId("tonight-row")).toContainText("Late worksheet");
+    await page.getByRole("button", { name: "Done: Late worksheet" }).click();
+    await expect(page.getByRole("img", { name: /1 of 1 done/ })).toBeVisible();
+    await expect(page.getByText("All done. Go relax!")).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("Nothing for tonight")).toBeVisible();
+  });
+
+  test("the new cards and Tonight mode pass the accessibility checks", async ({ page, request }) => {
+    await startReady(page, request, items(), "en", ALL, { courses });
+    await page.getByRole("button", { name: /more cards/i }).click();
+    await noViolations(page, "today with every widget");
+    await page.goto("/tonight");
+    await noViolations(page, "tonight mode");
+  });
+});

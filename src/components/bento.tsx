@@ -15,6 +15,8 @@ import { useI18n } from "@/lib/i18n/client";
 import type { Key } from "@/lib/i18n";
 import { dueLabel } from "@/lib/labels";
 import { formatDay, formatMoney } from "@/lib/time";
+import type { Activity } from "@/lib/widgets";
+import { BillsCard, ExamCard, FocusCard, RecapCard, StreaksCard, WeekCard, WinCard } from "./bento-extra";
 import { TYPE_EMOJI, type AgendaEntry } from "@/lib/types";
 
 export type BentoCourse = { name: string; color: string; emoji: string };
@@ -31,6 +33,10 @@ export type BentoProps = {
   habits: HabitCircle[];
   joker: JokerStatus;
   onHabit: (c: HabitCircle) => void;
+  /** Finish an assignment from a card (the focus timer). */
+  onDone: (e: AgendaEntry) => void;
+  activity: Activity;
+  paid: { amount_cents: number; paid_on: string }[];
 };
 
 const TITLE: Record<CardId, Key> = {
@@ -39,9 +45,19 @@ const TITLE: Record<CardId, Key> = {
   money: "bento.money",
   habits: "bento.habits",
   coming: "bento.coming",
+  week: "bento.week",
+  focus: "bento.focus",
+  exam: "bento.exam",
+  bills: "bento.bills",
+  streaks: "bento.streaks",
+  win: "bento.win",
+  recap: "bento.recap",
 };
-const EMOJI: Record<CardId, string> = { school: "📚", grades: "📝", money: "💳", habits: "🌱", coming: "🗓️" };
-const SPAN: Record<CardId, string> = { school: "col-span-2", grades: "col-span-2", money: "col-span-1", habits: "col-span-1", coming: "col-span-2" };
+const EMOJI: Record<CardId, string> = { school: "📚", grades: "📝", money: "💳", habits: "🌱", coming: "🗓️", week: "📆", focus: "⏱️", exam: "🎯", bills: "🧾", streaks: "🔥", win: "🏆", recap: "📊" };
+const SPAN: Record<CardId, string> = { school: "col-span-2", grades: "col-span-2", money: "col-span-1", habits: "col-span-1", coming: "col-span-2", week: "col-span-2", focus: "col-span-2", exam: "col-span-1", bills: "col-span-1", streaks: "col-span-2", win: "col-span-2", recap: "col-span-2" };
+
+/** Cards shown before "Show more", so the list under them stays within reach. */
+const COLLAPSED = 5;
 
 const stretch = "after:absolute after:inset-0 after:rounded-[22px] after:content-['']";
 
@@ -50,6 +66,7 @@ export function Bento(props: BentoProps) {
   const { toast } = useToast();
   const [layout, setLayout] = useState<DashPref | undefined>(props.layout);
   const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const [, start] = useTransition();
   const { shown, hidden, order } = layoutFor(layout, props.available);
   if (props.available.length === 0) return null;
@@ -80,6 +97,20 @@ export function Bento(props: BentoProps) {
         return <HabitsCard key={id} {...common} {...props} />;
       case "coming":
         return <ComingCard key={id} {...common} {...props} />;
+      case "week":
+        return <WeekCard key={id} {...common} {...props} />;
+      case "focus":
+        return <FocusCard key={id} {...common} {...props} />;
+      case "exam":
+        return <ExamCard key={id} {...common} {...props} />;
+      case "bills":
+        return <BillsCard key={id} {...common} {...props} />;
+      case "streaks":
+        return <StreaksCard key={id} {...common} {...props} />;
+      case "win":
+        return <WinCard key={id} {...common} {...props} />;
+      case "recap":
+        return <RecapCard key={id} {...common} {...props} />;
     }
   };
 
@@ -96,10 +127,17 @@ export function Bento(props: BentoProps) {
       {shown.length === 0 ? (
         <p className="card p-4 text-muted">{t("bento.allHidden")}</p>
       ) : (
-        <div className="bento">{shown.map((id, i) => card(id, i))}</div>
+        <>
+          <div className="bento">{(showAll ? shown : shown.slice(0, COLLAPSED)).map((id, i) => card(id, i))}</div>
+          {shown.length > COLLAPSED && (
+            <button type="button" className="btn-quiet w-fit self-center" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+              {showAll ? t("bento.less") : t("bento.more", { n: shown.length - COLLAPSED })}
+            </button>
+          )}
+        </>
       )}
 
-      <Sheet open={open} onClose={() => setOpen(false)} title={t("bento.customize")}>
+      <Sheet open={open} onClose={() => setOpen(false)} title={t("bento.customize")} tall>
         <p className="mb-3 text-sm text-muted">{t("bento.customize.hint")}</p>
         <ul className="flex flex-col gap-2">
           {order.map((id, i) => {
@@ -134,9 +172,9 @@ export function Bento(props: BentoProps) {
   );
 }
 
-type CardBase = BentoProps & { className: string; style: React.CSSProperties };
+export type CardBase = BentoProps & { className: string; style: React.CSSProperties };
 
-function Head({ id, href, badge, stretched = true }: { id: CardId; href: string; badge?: React.ReactNode; stretched?: boolean }) {
+export function Head({ id, href, badge, stretched = true }: { id: CardId; href: string; badge?: React.ReactNode; stretched?: boolean }) {
   const { t } = useI18n();
   return (
     <div className="flex items-center justify-between gap-2">

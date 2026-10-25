@@ -19,7 +19,7 @@ import {
   type Draft,
 } from "@/lib/add-flows";
 import { autoLook, courseLook, isPlaceholderColor, withLooks } from "@/lib/course-look";
-import { comingUp, gradesCard, habitCircles, layoutFor, leadingEmoji, moneyCard, moveCard, schoolCard } from "@/lib/dashboard";
+import { CARD_IDS, comingUp, gradesCard, habitCircles, layoutFor, leadingEmoji, moneyCard, moveCard, schoolCard } from "@/lib/dashboard";
 import { currentTerm, gradeValue, parseScoreText } from "@/lib/grades";
 import { itemInputSchema } from "@/lib/item-input";
 import { buildQuickInput, gateType, quickPreview } from "@/lib/quick-add";
@@ -458,5 +458,104 @@ describe("quiet hours after a quick save", () => {
     expect(quietRelease({ ...night, ringAnyway: true }, quiet, TZ, NOW)).toBeNull();
     expect(quietRelease(night, { ...quiet, urgentOverride: true }, TZ, NOW)).toBeNull();
     expect(quietRelease(buildItem("task", draft("task", { title: "x" }), ctx)!, quiet, TZ, NOW)).toBeNull();
+  });
+});
+
+import { activityStats, billsMonth, examCountdown, tonightList, weekStrip, winLine } from "@/lib/widgets";
+
+describe("more dashboard widgets", () => {
+  it("the new cards join the end of an older saved layout", () => {
+    const l = layoutFor({ order: ["coming", "money"], hidden: [] }, [...CARD_IDS]);
+    expect(l.order.slice(0, 2)).toEqual(["coming", "money"]);
+    expect(l.order).toHaveLength(CARD_IDS.length);
+    expect(l.order).toContain("recap");
+  });
+
+  it("week strip: 7 days from today, late things count today, the busiest day is flagged", () => {
+    const e = (id: string, dueAt: string, extra: Partial<AgendaEntry> = {}) => entry({ occId: id, dueAt, ...extra });
+    const days = weekStrip(
+      [
+        e("late", "2026-10-20T12:00:00Z"),
+        e("t1", "2026-10-24T22:00:00Z"),
+        e("m1", "2026-10-26T13:00:00Z"),
+        e("m2", "2026-10-26T14:00:00Z"),
+        e("m3", "2026-10-26T15:00:00Z"),
+        e("later", "2026-12-01T15:00:00Z"),
+        e("snoozed", "2026-10-24T20:00:00Z", { snoozedUntil: "2026-10-27T13:00:00Z" }),
+      ],
+      NOW,
+      TZ,
+    );
+    expect(days.map((d) => d.key)).toEqual(["2026-10-24", "2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]);
+    expect(days.map((d) => d.count)).toEqual([2, 0, 3, 1, 0, 0, 0]);
+    expect(days[0].today).toBe(true);
+    expect(days.filter((d) => d.heavy).map((d) => d.key)).toEqual(["2026-10-26"]);
+  });
+
+  it("exam countdown: the nearest test or quiz ahead, with days and a fuller ring when close", () => {
+    const x = examCountdown(
+      [
+        entry({ type: "homework", title: "Unit 4 Test", dueAt: "2026-10-30T13:00:00Z" }),
+        entry({ type: "homework", title: "Quiz 2", dueAt: "2026-10-27T13:00:00Z" }),
+        entry({ type: "homework", title: "Worksheet", dueAt: "2026-10-25T13:00:00Z" }),
+        entry({ type: "homework", title: "Old test", dueAt: "2026-10-20T13:00:00Z" }),
+      ],
+      NOW,
+      TZ,
+    )!;
+    expect(x.entry.title).toBe("Quiz 2");
+    expect(x.days).toBe(3);
+    expect(x.fill).toBeCloseTo(1 - 3 / 14, 3);
+    expect(examCountdown([], NOW, TZ)).toBeNull();
+  });
+
+  it("bills this month: what is left, what is paid, how full the bar is", () => {
+    const b = billsMonth(
+      [entry({ type: "payment", amountCents: 6000, dueAt: "2026-10-28T13:00:00Z" }), entry({ type: "payment", amountCents: 9999, dueAt: "2026-11-02T13:00:00Z" }), entry({ type: "task" })],
+      [{ amount_cents: 2000, paid_on: "2026-10-03" }, { amount_cents: 500, paid_on: "2026-09-30" }],
+      NOW,
+      TZ,
+    );
+    expect(b).toEqual({ dueCents: 6000, paidCents: 2000, dueCount: 1, fill: 0.25 });
+    expect(billsMonth([], [], NOW, TZ).fill).toBe(0);
+  });
+
+  it("activity: today, yesterday, this week (from Monday) and last week, homework counted apart", () => {
+    const d = (item: string, iso: string) => ({ item_id: item, done_at: iso });
+    const a = activityStats(
+      [d("hw", "2026-10-24T14:00:00Z"), d("t", "2026-10-23T14:00:00Z"), d("hw", "2026-10-21T14:00:00Z"), d("hw", "2026-10-19T14:00:00Z"), d("hw", "2026-10-15T14:00:00Z"), d("t", "2026-10-05T14:00:00Z")],
+      { hw: "homework", t: "task" },
+      NOW,
+      TZ,
+    );
+    // NOW is Saturday: this week is Mon 19 to Sat 24, last week is 12 to 18.
+    expect(a).toEqual({ doneToday: 1, doneYesterday: 1, thisWeek: 4, lastWeek: 1, hwThisWeek: 3, hwLastWeek: 1 });
+  });
+
+  it("win of the day: yesterday first, then today, else a quote picked by the day", () => {
+    const none = { doneToday: 0, doneYesterday: 0, thisWeek: 0, lastWeek: 0, hwThisWeek: 0, hwLastWeek: 0 };
+    expect(winLine({ ...none, doneYesterday: 6, doneToday: 2 }, NOW, TZ)).toEqual({ kind: "yesterday", n: 6 });
+    expect(winLine({ ...none, doneToday: 2 }, NOW, TZ)).toEqual({ kind: "today", n: 2 });
+    const q = winLine(none, NOW, TZ);
+    expect(q.kind).toBe("quote");
+    expect(q.n).toBeGreaterThanOrEqual(0);
+    expect(q.n).toBeLessThan(8);
+  });
+
+  it("tonight mode: late homework and anything due before noon tomorrow, in due order", () => {
+    const h = (id: string, dueAt: string, extra: Partial<AgendaEntry> = {}) => entry({ occId: id, type: "homework", dueAt, ...extra });
+    const list = tonightList(
+      [
+        h("tomorrow-3pm", "2026-10-25T19:00:00Z"),
+        h("tonight", "2026-10-25T00:00:00Z"),
+        h("late", "2026-10-22T12:00:00Z"),
+        h("tomorrow-8am", "2026-10-25T12:00:00Z"),
+        h("snoozed", "2026-10-24T20:00:00Z", { snoozedUntil: "2026-10-26T12:00:00Z" }),
+        entry({ occId: "task", type: "task", dueAt: "2026-10-24T20:00:00Z" }),
+      ],
+      NOW,
+      TZ,
+    );
+    expect(list.map((e) => e.occId)).toEqual(["late", "tonight", "tomorrow-8am"]);
   });
 });
