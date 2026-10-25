@@ -262,11 +262,11 @@ test.describe("importing school work", () => {
     await page.goto("/import");
     await page.getByRole("button", { name: "Insert an example" }).click();
     await page.getByRole("button", { name: /^preview/i }).click();
-    await page.getByRole("button", { name: /confirm import \(3\)/i }).click();
+    await page.getByRole("button", { name: /confirm import \(4\)/i }).click();
     await expect(page.getByRole("heading", { name: "Imported ✓" })).toBeVisible();
 
     await page.goto("/grades");
-    await expect(page.getByRole("link", { name: /Math 101/ })).toContainText("90%");
+    await expect(page.getByRole("link", { name: /Math 101/ })).toContainText("B 2.72");
     await page.getByRole("link", { name: /Math 101/ }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Math 101");
     await expect(page.getByText("Quiz 2")).toBeVisible();

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getReadyCtx } from "@/lib/context";
 import { makeT, type Key } from "@/lib/i18n";
-import { toDueLocal } from "@/lib/item-input";
+import { toDueLocal, type HwWhere } from "@/lib/item-input";
 import { describeReminder } from "@/lib/reminder-labels";
 import { describeRule, parseRule } from "@/lib/recurrence";
 import { rowToReminder } from "@/lib/reminders";
@@ -86,6 +86,8 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
     courseId: item.course_id,
     notes: item.notes,
     location: item.location ?? null,
+    link: item.link ?? null,
+    where: (item.hw_where as HwWhere | null) ?? null,
     subtype: (item.subtype as "game_day" | "registration" | "sponsor" | "posting" | null) ?? null,
     checklist: checklist.map((c) => ({ text: c.text, done: c.done })),
     reminders,
@@ -143,6 +145,22 @@ export default async function ItemPage({ params, searchParams }: { params: Promi
             <>
               <dt className="font-semibold text-muted">{t("item.location")}</dt>
               <dd>{item.location}</dd>
+            </>
+          )}
+          {item.type === "homework" && item.hw_where && (
+            <>
+              <dt className="font-semibold text-muted">{t("hw.where")}</dt>
+              <dd>{t(("hw.where." + item.hw_where) as Key)}</dd>
+            </>
+          )}
+          {item.type === "homework" && item.link && (
+            <>
+              <dt className="font-semibold text-muted">{t("hw.link")}</dt>
+              <dd>
+                <a className="font-semibold text-accent-text underline" href={item.link} target="_blank" rel="noopener noreferrer">
+                  {t("hw.open")} ↗
+                </a>
+              </dd>
             </>
           )}
           {item.type === "work" && item.subtype && (

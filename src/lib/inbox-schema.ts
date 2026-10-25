@@ -16,6 +16,12 @@ const when = z
     message: 'must be a date like "2026-10-20" or a date and time like "2026-10-20T23:59:00-04:00"',
   });
 
+const httpLink = z
+  .string()
+  .trim()
+  .max(500, "is too long (500 characters at most)")
+  .refine((v) => /^https?:\/\/\S+$/i.test(v), { message: "must be a web address starting with http:// or https://" });
+
 const classSchema = z.object({
   external_id: id,
   name: z.string().trim().min(1, "must not be empty").max(60, "is too long (60 characters at most)"),
@@ -29,6 +35,8 @@ const assignmentSchema = z.object({
   due: when.nullish(),
   notes: z.string().max(3000).nullish(),
   url: z.string().trim().max(500).nullish(),
+  /** The assignment page itself (shows as an Open button on the reminder). */
+  link: httpLink.nullish(),
   done: z.boolean().optional(),
 });
 
@@ -41,6 +49,14 @@ const gradeSchema = z.object({
   out_of: z.number().gt(0, "must be more than 0").max(1_000_000),
   posted: when.nullish(),
   comment: z.string().max(500).nullish(),
+  /** A letter grade such as "B" or "A-" (a class average on a 4.0 scale). Shown instead of a percent. */
+  letter: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z][+-]?$/, "must be a letter such as B or A-")
+    .nullish(),
+  /** Points on a 4.0 scale that go with the letter, such as 2.72. */
+  points: z.number().min(0, "cannot be negative").max(10, "is too high (10 at most)").nullish(),
 });
 
 export const inboxSchema = z
@@ -122,6 +138,7 @@ export function toDatabasePayload(p: InboxPayload, tz: string) {
       due_at: a.due ? toInstant(a.due, tz) : null,
       notes: a.notes ?? null,
       url: a.url ?? null,
+      link: a.link ?? null,
       done: a.done ?? false,
     })),
     grades: (p.grades ?? []).map((g) => ({
@@ -133,6 +150,8 @@ export function toDatabasePayload(p: InboxPayload, tz: string) {
       out_of: g.out_of,
       posted_at: g.posted ? toInstant(g.posted, tz) : null,
       comment: g.comment ?? null,
+      letter: g.letter ? g.letter.toUpperCase() : null,
+      points: g.points ?? null,
     })),
   };
 }

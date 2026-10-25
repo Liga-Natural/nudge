@@ -15,6 +15,8 @@ export type SeedItem = {
   rrule?: string;
   location?: string;
   subtype?: string;
+  link?: string;
+  hwWhere?: string;
   courseId?: string;
   occurrences?: { dueAt: string; status?: string }[];
 };

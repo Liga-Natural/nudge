@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     features?: Record<string, boolean>;
     /** Overrides for the profile row, e.g. { urgent_override: false }. */
     profile?: Record<string, unknown>;
-    items?: { id?: string; occId?: string; title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number; autopay?: boolean; rrule?: string; location?: string; subtype?: string; courseId?: string; occurrences?: { dueAt: string; status?: string }[] }[];
+    items?: { id?: string; occId?: string; title: string; type?: string; dueAt: string; allDay?: boolean; amountCents?: number; autopay?: boolean; rrule?: string; location?: string; subtype?: string; link?: string; hwWhere?: string; courseId?: string; occurrences?: { dueAt: string; status?: string }[] }[];
     /** Extra rows for other tables, e.g. { courses: [...], grades: [...] }. */
     extra?: Record<string, Record<string, unknown>[]>;
   };
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         id, user_id: s.userId, space_id: spaceId, type: it.type ?? "task", title: it.title, notes: null, due_at: it.dueAt,
         all_day: it.allDay ?? false, timezone: "America/New_York", status: "open", priority: 0, amount_cents: it.amountCents ?? null,
         currency: "USD", rrule: it.rrule ?? null, autopay: it.autopay ?? false, course_id: it.courseId ?? null,
-        location: it.location ?? null, subtype: it.subtype ?? null,
+        location: it.location ?? null, subtype: it.subtype ?? null, link: it.link ?? null, hw_where: it.hwWhere ?? null,
       });
       for (const o of it.occurrences ?? [{ dueAt: it.dueAt }]) {
         s.tables.occurrences.push({ id: it.occId ?? crypto.randomUUID(), user_id: s.userId, item_id: id, due_at: o.dueAt, status: o.status ?? "open", snoozed_until: null, snooze_count: 0, done_at: null });

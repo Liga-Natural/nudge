@@ -271,3 +271,32 @@ test.describe("light mode keeps the cream background", () => {
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(250, 248, 245)");
   });
 });
+
+test.describe("school polish", () => {
+  test("homework with a link shows Where and an Open button that goes to the link", async ({ page, request }) => {
+    const items: SeedItem[] = [
+      { title: "IXL lesson", type: "homework", dueAt: soon(3), link: "https://www.ixl.com/math/grade-7", hwWhere: "online" },
+      { title: "Plain homework", type: "homework", dueAt: soon(4) },
+    ];
+    await startReady(page, request, items, "en", ALL);
+    const hw = row(page, "IXL lesson");
+    await expect(hw).toContainText("Online");
+    const open = hw.getByRole("link", { name: /open/i });
+    await expect(open).toHaveAttribute("href", "https://www.ixl.com/math/grade-7");
+    await expect(open).toHaveAttribute("target", "_blank");
+    await expect(row(page, "Plain homework").getByRole("link", { name: /open/i })).toHaveCount(0);
+  });
+
+  test("a letter average shows the letter and the points, not a percent", async ({ page, request }) => {
+    const extra = {
+      courses: [{ id: COURSE, name: "Biology", color: "#e6f4ea" }],
+      grades: [{ id: "00000000-0000-4000-8000-0000000000e1", course_id: COURSE, title: "Quarter 1 average (B, 2.72)", score: 2.72, out_of: 4, percent: 68, letter: "B", points: 2.72, posted_at: new Date().toISOString(), source: "classroom", comment: null }],
+    };
+    await startReady(page, request, [], "en", ALL, extra);
+    await page.goto("/grades");
+    const card = page.getByRole("link", { name: /Biology/ });
+    await expect(card).toContainText("B 2.72");
+    await expect(card).not.toContainText("68%");
+    await expect(card).not.toContainText("D");
+  });
+});

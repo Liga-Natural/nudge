@@ -3,7 +3,7 @@ import { AccentTitle } from "@/components/accent-title";
 import { FeatureOff } from "@/components/feature-off";
 import { getReadyCtx } from "@/lib/context";
 import { featureOn } from "@/lib/features";
-import { classAverage, letterFor } from "@/lib/grades";
+import { classHeadline, letterText } from "@/lib/grades";
 import { makeT } from "@/lib/i18n";
 import type { Course, GradeRowDb } from "@/lib/types";
 
@@ -16,7 +16,7 @@ export default async function GradesPage() {
 
   const [courseRes, gradeRes] = await Promise.all([
     supabase.from("courses").select("id,name,color").order("created_at"),
-    supabase.from("grades").select("id,course_id,title,score,out_of,percent,posted_at,source,comment").order("posted_at", { ascending: false }).limit(500),
+    supabase.from("grades").select("id,course_id,title,score,out_of,percent,posted_at,source,comment,letter,points").order("posted_at", { ascending: false }).limit(500),
   ]);
   const courses = (courseRes.data ?? []) as Course[];
   const grades = (gradeRes.data ?? []) as GradeRowDb[];
@@ -30,7 +30,7 @@ export default async function GradesPage() {
         <ul className="flex flex-col gap-3">
           {courses.map((c) => {
             const mine = grades.filter((g) => g.course_id === c.id);
-            const avg = classAverage(mine.map((g) => ({ score: Number(g.score), out_of: Number(g.out_of) })));
+            const head = classHeadline(mine.map((g) => ({ score: Number(g.score), out_of: Number(g.out_of), letter: g.letter, points: g.points, posted_at: g.posted_at })));
             return (
               <li key={c.id} className="list-none">
                 <Link href={`/grades/${c.id}`} className="card flex items-center gap-3 p-4">
@@ -40,8 +40,8 @@ export default async function GradesPage() {
                     <span className="block text-sm text-muted">{mine.length === 0 ? t("grades.none") : t("grades.count", { n: mine.length })}</span>
                   </span>
                   <span className="text-right">
-                    <span className="block text-2xl font-extrabold">{avg === null ? "—" : `${avg}%`}</span>
-                    {avg !== null && <span className="block text-sm font-semibold text-muted">{letterFor(avg)}</span>}
+                    <span className="block text-2xl font-extrabold">{head === null ? "—" : head.kind === "letter" ? letterText(head.letter, head.points) : `${head.percent}%`}</span>
+                    {head?.kind === "percent" && <span className="block text-sm font-semibold text-muted">{head.letter}</span>}
                   </span>
                 </Link>
               </li>

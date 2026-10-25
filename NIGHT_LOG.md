@@ -1,3 +1,21 @@
+# ⚠️ WAITING ON YOU — branch `school-polish` needs one SQL file before it can merge
+
+Not merged on purpose: this change adds database columns, so it needs SQL first.
+
+**Run this in Supabase → SQL Editor → New query → paste → Run → "Success" (safe to run twice):**
+
+* `supabase/migrations/0012_school_polish.sql`
+  * adds `letter` and `points` to grades (for averages like **B 2.72**),
+  * **fixes your existing imported averages**: any grade whose title has a letter in parentheses, like "(B, 2.72)", gets its letter and points from the title,
+  * adds `link` and `hw_where` (Classroom / Colēgia / Online / Paper) to homework,
+  * updates the import function (letter, points, link) and adds `dispatch_grade_notifications_v2` so the "New grade" push says "B 2.72".
+
+The app still works without the file (nothing crashes), but saving a homework link/where or a letter grade will fail until it is run. After you run it, say "merge school-polish" and I will merge once CI is green.
+
+What changed: grades with a letter show the letter and points instead of a percent (Import page, `/api/inbox`, typed by hand); homework has a Link and Where chip, an **Open ↗** button on the card, and quick-add reads a link at the end ("ixl lesson monday 8pm https://..."); imported assignments can carry `link`. Docs: `docs/INBOX_API.md` and the "Insert an example" JSON are updated.
+
+---
+
 # NIGHT_LOG — Nudge, Phase 4 (branch `phase-4`)
 
 Nothing was merged. Nothing in your real Supabase or Vercel was touched, and no secret value was printed or written anywhere. Branch `phase-4` was cut from `origin/main` (which already has Phase 3 merged; your local `main` was one step behind).

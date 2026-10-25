@@ -276,16 +276,16 @@ export function fakeImport(args: ImportArgs) {
     if (a.class && !courseId) warnings.push(`Assignment "${a.title}": class "${a.class}" is not known, so it was added without a class.`);
     const existing = s.tables.items.find((i) => i.source === source && i.external_uid === a.external_id && !i.feed_id);
     let status = "new";
-    if (existing) status = existing.locally_edited ? "unchanged" : existing.title !== a.title || existing.due_at !== a.due_at || (a.done && existing.status === "open") ? "updated" : "unchanged";
+    if (existing) status = existing.locally_edited ? "unchanged" : existing.title !== a.title || existing.due_at !== a.due_at || (a.link && existing.link !== a.link) || (a.done && existing.status === "open") ? "updated" : "unchanged";
     if (commit && status === "new") {
       const id = crypto.randomUUID();
-      s.tables.items.push({ ...DEFAULTS.items(), id, user_id: s.userId, type: "homework", title: a.title, notes: a.notes ?? null, due_at: a.due_at, all_day: false, timezone: "America/New_York", status: a.done ? "done" : "open", source, external_uid: a.external_id, course_id: courseId === "preview-class" ? null : courseId });
+      s.tables.items.push({ ...DEFAULTS.items(), id, user_id: s.userId, type: "homework", title: a.title, notes: a.notes ?? null, due_at: a.due_at, all_day: false, timezone: "America/New_York", status: a.done ? "done" : "open", source, external_uid: a.external_id, course_id: courseId === "preview-class" ? null : courseId, link: a.link ?? null });
       if (a.due_at) {
         s.tables.occurrences.push({ ...DEFAULTS.occurrences(), user_id: s.userId, item_id: id, due_at: a.due_at, status: a.done ? "done" : "open" });
         s.tables.reminders.push({ ...DEFAULTS.reminders(), user_id: s.userId, item_id: id, days_before: 1, at_time: "18:00:00" }, { ...DEFAULTS.reminders(), user_id: s.userId, item_id: id, offset_minutes: 120 });
       }
     } else if (commit && status === "updated" && existing) {
-      Object.assign(existing, { title: a.title, due_at: a.due_at, notes: a.notes ?? null, status: a.done ? "done" : existing.status });
+      Object.assign(existing, { title: a.title, due_at: a.due_at, notes: a.notes ?? null, link: a.link ?? existing.link ?? null, status: a.done ? "done" : existing.status });
       s.tables.occurrences = s.tables.occurrences.filter((o) => o.item_id !== existing.id || o.status !== "open");
       if (a.due_at && !a.done) s.tables.occurrences.push({ ...DEFAULTS.occurrences(), user_id: s.userId, item_id: existing.id, due_at: a.due_at });
     }
@@ -300,11 +300,11 @@ export function fakeImport(args: ImportArgs) {
       continue;
     }
     const existing = s.tables.grades.find((r) => r.source === source && r.external_id === g.external_id);
-    const status = !existing ? "new" : existing.score !== g.score || existing.out_of !== g.out_of || existing.title !== g.title ? "updated" : "unchanged";
+    const status = !existing ? "new" : existing.score !== g.score || existing.out_of !== g.out_of || existing.title !== g.title || (g.letter && existing.letter !== g.letter) || (g.points != null && existing.points !== g.points) ? "updated" : "unchanged";
     const percent = Math.round(((g.score as number) / (g.out_of as number)) * 10000) / 100;
     if (commit && status === "new") {
-      s.tables.grades.push({ ...DEFAULTS.grades(), user_id: s.userId, course_id: courseId === "preview-class" ? null : courseId, title: g.title, score: g.score, out_of: g.out_of, percent, posted_at: g.posted_at ?? now(), source, external_id: g.external_id, notified_at: source === "manual" ? now() : null });
-    } else if (commit && status === "updated" && existing) Object.assign(existing, { title: g.title, score: g.score, out_of: g.out_of, percent });
+      s.tables.grades.push({ ...DEFAULTS.grades(), user_id: s.userId, course_id: courseId === "preview-class" ? null : courseId, title: g.title, score: g.score, out_of: g.out_of, percent, letter: g.letter ?? null, points: g.points ?? null, posted_at: g.posted_at ?? now(), source, external_id: g.external_id, notified_at: source === "manual" ? now() : null });
+    } else if (commit && status === "updated" && existing) Object.assign(existing, { title: g.title, score: g.score, out_of: g.out_of, percent, letter: g.letter ?? existing.letter ?? null, points: g.points ?? existing.points ?? null });
     counts.grades[status]++;
     results.push({ kind: "grade", external_id: g.external_id, title: g.title, status });
   }

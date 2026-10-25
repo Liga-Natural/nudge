@@ -1,3 +1,4 @@
+import { letterText } from "./grades";
 import { daysBetweenLocal, formatDay, formatMoney, formatTime, type Lang } from "./time";
 
 // The words in notifications, in English and Spanish.
@@ -41,6 +42,8 @@ export type GradeRow = {
   score: number | string;
   out_of: number | string;
   percent: number | string;
+  letter?: string | null;
+  points?: number | string | null;
   timezone: string;
   language: Lang;
 };
@@ -193,6 +196,6 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 export function buildGradePayload(rows: GradeRow[]): PushPayload {
   const first = rows[0];
   const t = T[first.language];
-  const lines = rows.slice(0, 4).map((g) => `${g.title}: ${fmt(num(g.score))}/${fmt(num(g.out_of))} (${fmt(num(g.percent))}%)`);
+  const lines = rows.slice(0, 4).map((g) => g.letter ? `${g.title}: ${letterText(g.letter, g.points)}` : `${g.title}: ${fmt(num(g.score))}/${fmt(num(g.out_of))} (${fmt(num(g.percent))}%)`);
   return { title: t.gradeTitle(first.course_name), body: lines.join("\n"), url: "/grades", tag: `grade-${first.grade_id}` };
 }
